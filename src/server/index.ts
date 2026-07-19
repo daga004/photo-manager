@@ -1,5 +1,5 @@
 import indexHtml from "../client/index.html";
-import { getDb } from "./db.ts";
+import { getDb, reconcileStuckJobs } from "./db.ts";
 import { config } from "./config.ts";
 import { makeDaysListHandler, makeDayDetailHandler } from "./routes/days.ts";
 import { makeMediaDetailHandler, makeMediaFullHandler, makeMediaRestoreHandler } from "./routes/media.ts";
@@ -11,6 +11,9 @@ import { makeDuplicatesListHandler, makeDuplicatesResolveHandler } from "./route
 import { makeDevicesListHandler } from "./routes/devices.ts";
 
 const db = getDb();
+// Only the real, long-lived server process should ever reconcile stuck jobs —
+// see db.ts's getDb() doc comment for why this must not live inside getDb() itself.
+reconcileStuckJobs(db);
 
 const server = Bun.serve({
   port: config.port,

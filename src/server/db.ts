@@ -6,6 +6,17 @@ import type { DeviceImportItemRecord, ImportJobEventRecord, ImportJobRecord, Med
 
 let db: Database | null = null;
 
+/**
+ * Opens (or returns the already-open) database connection and applies
+ * migrations. Deliberately does NOT run reconcileStuckJobs — that must only
+ * ever run once, at actual long-lived server startup (see index.ts). Confirmed
+ * empirically: a one-off script (e.g. an ad-hoc `bun -e` diagnostic query)
+ * also calls getDb(), and if reconciliation ran here, it would incorrectly
+ * flip a job that's genuinely still executing in the live server process to
+ * 'stalled' — the two processes share the same SQLite file, so this script's
+ * "no process could still legitimately be running this" assumption doesn't
+ * hold when the real server actually is.
+ */
 export function getDb(): Database {
   if (db) return db;
   mkdirSync(config.dataDir, { recursive: true });
@@ -13,7 +24,6 @@ export function getDb(): Database {
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
   runMigrations(db);
-  reconcileStuckJobs(db);
   return db;
 }
 
@@ -52,7 +62,7 @@ function runMigrations(database: Database): void {
  * restart). It cannot actually still be running in a fresh process, so mark
  * it `stalled` — the UI then offers Resume instead of showing a hung job.
  */
-function reconcileStuckJobs(database: Database): void {
+export function reconcileStuckJobs(database: Database): void {
   const result = database
     .query("UPDATE import_jobs SET status = 'stalled' WHERE status = 'running'")
     .run();
