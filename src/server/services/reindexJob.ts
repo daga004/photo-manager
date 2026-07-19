@@ -43,9 +43,11 @@ export async function runReindexJob(db: Database, jobId: number): Promise<void> 
 
     const pending = scanned.filter((f) => !findMediaByPath(db, f.absolutePath));
     const alreadyIndexedCount = scanned.length - pending.length;
-    if (alreadyIndexedCount > 0) {
-      incrementImportJobCounters(db, jobId, { filesProcessed: alreadyIndexedCount });
-    }
+    // SET (not increment) filesProcessed to the count already in the index, so
+    // a resume reports the true running total (already-indexed + newly-done)
+    // rather than adding the already-indexed count on top of the previous
+    // run's counter — which would push filesProcessed past filesFound.
+    updateImportJob(db, jobId, { filesProcessed: alreadyIndexedCount });
 
     if (pending.length > 0) {
       // Sampled fingerprint (~128KB/file) instead of a full-content read —
