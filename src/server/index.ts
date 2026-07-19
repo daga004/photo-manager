@@ -8,7 +8,7 @@ import {
 } from "./routes/settings.ts";
 import { makeDaysListHandler, makeDayDetailHandler } from "./routes/days.ts";
 import { makeMediaDetailHandler, makeMediaFullHandler, makeMediaRestoreHandler } from "./routes/media.ts";
-import { makeThumbnailHandler } from "./routes/thumbnails.ts";
+import { makePreviewHandler, makeThumbnailHandler } from "./routes/thumbnails.ts";
 import { makeImportHandler, makeDeviceImportHandler } from "./routes/import.ts";
 import { makeReindexHandler } from "./routes/reindex.ts";
 import {
@@ -45,6 +45,7 @@ const server = Bun.serve({
     "/api/media/:id": makeMediaDetailHandler(db),
     "/api/media/:id/full": makeMediaFullHandler(db),
     "/api/media/:id/thumbnail": makeThumbnailHandler(db),
+    "/api/media/:id/preview": makePreviewHandler(db),
     "/api/media/:id/restore": { POST: makeMediaRestoreHandler(db) },
 
     "/api/devices": makeDevicesListHandler(),

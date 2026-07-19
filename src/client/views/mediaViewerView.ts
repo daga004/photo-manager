@@ -1,5 +1,9 @@
 import type { DayItem } from "../../shared/types.ts";
 
+const thumbUrl = (id: number) => `/api/media/${id}/thumbnail`;
+const previewUrl = (id: number) => `/api/media/${id}/preview`;
+const originalUrl = (id: number) => `/api/media/${id}/full`;
+
 export function openMediaViewer(items: DayItem[], startIndex: number): void {
   let index = startIndex;
   const overlay = document.createElement("div");
@@ -9,17 +13,63 @@ export function openMediaViewer(items: DayItem[], startIndex: number): void {
   function render(): void {
     const item = items[index];
     if (!item) return;
-    const mediaEl =
-      item.mediaType === "photo"
-        ? `<img src="/api/media/${item.id}/full" alt="${escapeAttr(item.filename)}" />`
-        : `<video src="/api/media/${item.id}/full" controls autoplay></video>`;
+
+    if (item.mediaType === "video") {
+      // Video streams from the server with Range support; the browser handles
+      // progressive playback, so no preview indirection is needed.
+      renderShell(
+        `<video src="${originalUrl(item.id)}" controls autoplay></video>`,
+        item,
+      );
+    } else {
+      // Progressive photo load, nomacs-style: show the already-cached thumbnail
+      // instantly (upscaled + slightly blurred) as a placeholder, then swap in
+      // the screen-resolution preview the moment it decodes. The preview is a
+      // browser-safe JPEG (HEIC/RAW originals wouldn't render) and a fraction
+      // of the original's size over the network.
+      renderShell(
+        `<img class="viewer-img viewer-img-loading" src="${thumbUrl(item.id)}" alt="${escapeAttr(item.filename)}" />`,
+        item,
+      );
+      const imgEl = overlay.querySelector<HTMLImageElement>(".viewer-img");
+      if (imgEl) {
+        const full = new Image();
+        full.onload = () => {
+          // Only swap if the user hasn't navigated away in the meantime.
+          if (items[index]?.id === item.id) {
+            imgEl.src = full.src;
+            imgEl.classList.remove("viewer-img-loading");
+          }
+        };
+        full.src = previewUrl(item.id);
+      }
+    }
+
+    prefetchNeighbors();
+  }
+
+  function renderShell(mediaHtml: string, item: DayItem): void {
     overlay.innerHTML = `
       <button class="viewer-close" data-action="close" aria-label="Close">&times;</button>
       <button class="viewer-prev" data-action="prev" ${index === 0 ? "disabled" : ""} aria-label="Previous">&larr;</button>
-      <div class="viewer-media">${mediaEl}</div>
+      <div class="viewer-media">${mediaHtml}</div>
       <button class="viewer-next" data-action="next" ${index === items.length - 1 ? "disabled" : ""} aria-label="Next">&rarr;</button>
-      <div class="viewer-filename">${escapeAttr(item.filename)} (${index + 1} / ${items.length})</div>
+      <div class="viewer-footer">
+        <span class="viewer-filename">${escapeAttr(item.filename)} (${index + 1} / ${items.length})</span>
+        ${item.mediaType === "photo" ? `<a class="viewer-original" href="${originalUrl(item.id)}" target="_blank" rel="noopener">View original</a>` : ""}
+      </div>
     `;
+  }
+
+  // Warm the browser cache for the adjacent previews so next/prev feels instant.
+  function prefetchNeighbors(): void {
+    for (const n of [index - 1, index + 1]) {
+      const neighbor = items[n];
+      if (neighbor && neighbor.mediaType === "photo") {
+        const img = new Image();
+        img.src = previewUrl(neighbor.id);
+      }
+    }
   }
 
   function close(): void {
@@ -27,27 +77,24 @@ export function openMediaViewer(items: DayItem[], startIndex: number): void {
     document.removeEventListener("keydown", onKeyDown);
   }
 
+  function go(delta: number): void {
+    const next = index + delta;
+    if (next < 0 || next >= items.length) return;
+    index = next;
+    render();
+  }
+
   function onKeyDown(e: KeyboardEvent): void {
     if (e.key === "Escape") close();
-    else if (e.key === "ArrowLeft" && index > 0) {
-      index--;
-      render();
-    } else if (e.key === "ArrowRight" && index < items.length - 1) {
-      index++;
-      render();
-    }
+    else if (e.key === "ArrowLeft") go(-1);
+    else if (e.key === "ArrowRight") go(1);
   }
 
   overlay.addEventListener("click", (e) => {
     const action = (e.target as HTMLElement).dataset.action;
     if (action === "close") close();
-    else if (action === "prev" && index > 0) {
-      index--;
-      render();
-    } else if (action === "next" && index < items.length - 1) {
-      index++;
-      render();
-    }
+    else if (action === "prev") go(-1);
+    else if (action === "next") go(1);
   });
 
   document.addEventListener("keydown", onKeyDown);

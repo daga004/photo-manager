@@ -178,6 +178,29 @@ button:hover {
 .viewer-media video {
   max-width: 88vw;
   max-height: 82vh;
+  object-fit: contain;
+}
+
+/* Upscaled thumbnail placeholder: soften the blockiness until the sharp
+   preview swaps in. */
+.viewer-img-loading {
+  filter: blur(8px);
+  transition: filter 0.2s ease;
+}
+
+.viewer-footer {
+  position: absolute;
+  bottom: 1.25rem;
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  color: #ccc;
+  font-size: 0.85rem;
+}
+
+.viewer-original {
+  color: var(--accent);
+  text-decoration: none;
 }
 
 .viewer-close,
