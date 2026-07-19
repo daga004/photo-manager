@@ -94,14 +94,24 @@ export async function renderDuplicates(container: HTMLElement): Promise<void> {
       if (!confirm(`Permanently delete ${itemCount - 1} duplicate file(s), keeping the selected one? This cannot be undone.`)) {
         return;
       }
-      const res = await resolveDuplicate(contentHash, keepMediaId, "delete_extras");
-      if (res.skippedNotIdentical?.length) {
-        alert(`${res.skippedNotIdentical.length} file(s) were left in place — a full byte-check showed they weren't actually identical.`);
+      button.disabled = true;
+      try {
+        const res = await resolveDuplicate(contentHash, keepMediaId, "delete_extras");
+        if (res.skippedNotIdentical?.length) {
+          alert(`${res.skippedNotIdentical.length} file(s) were left in place — a full byte-check showed they weren't actually identical.`);
+        }
+        await load();
+      } catch (err) {
+        alert(`Delete failed (originals kept, nothing lost): ${err instanceof Error ? err.message : String(err)}`);
+        button.disabled = false;
       }
-      await load();
     } else if (action === "ignore" && selected) {
-      await resolveDuplicate(contentHash, Number(selected.value), "ignore");
-      await load();
+      try {
+        await resolveDuplicate(contentHash, Number(selected.value), "ignore");
+        await load();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : String(err));
+      }
     }
   });
 

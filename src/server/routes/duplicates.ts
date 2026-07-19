@@ -76,19 +76,27 @@ export function makeDuplicatesResolveHandler(db: Database) {
     // reported back, so a false positive can never delete a real photo.
     let quarantinedCount = 0;
     const skippedNotIdentical: number[] = [];
+    const failed: number[] = [];
     for (const item of items) {
       if (item.id === keepMediaId) continue;
       if (!(await verifyIdentical(keptItem.path, item.path))) {
         skippedNotIdentical.push(item.id);
         continue;
       }
-      const dest = join(config.quarantineDuplicatesDir, `${item.id}_${basename(item.path)}`);
-      await safeMoveFile(item.path, dest);
-      quarantineMedia(db, item.id, dest, `duplicate, kept media #${keepMediaId}`);
-      quarantinedCount++;
+      try {
+        const dest = join(config.quarantineDuplicatesDir, `${item.id}_${basename(item.path)}`);
+        await safeMoveFile(item.path, dest);
+        quarantineMedia(db, item.id, dest, `duplicate, kept media #${keepMediaId}`);
+        quarantinedCount++;
+      } catch {
+        // A move that failed verification left the original intact (safeMoveFile
+        // deletes only after a verified copy). Skip it, keep going, report it —
+        // one flaky copy shouldn't 500 the whole request or lose data.
+        failed.push(item.id);
+      }
     }
     insertDuplicateResolution(db, { contentHash, keptMediaId: keepMediaId, action: "deleted_extras" });
 
-    return Response.json({ quarantinedCount, keptMediaId: keepMediaId, skippedNotIdentical });
+    return Response.json({ quarantinedCount, keptMediaId: keepMediaId, skippedNotIdentical, failed });
   };
 }
