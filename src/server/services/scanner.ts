@@ -8,6 +8,26 @@ import {
   type MediaType,
 } from "../../shared/extensions.ts";
 
+const BUNDLE_SUFFIXES = [".photoslibrary", ".app", ".bundle", ".framework"];
+const KNOWN_APP_MANAGED_DIR_NAMES = new Set(["photo booth library"]);
+
+/**
+ * True for directories that are really an app's internal managed storage
+ * (a macOS "photo library" package, Photo Booth's library, etc.) rather than
+ * a plain folder of media files. A generic recursive scanner reaching inside
+ * one of these and moving files out from under the owning app is a real
+ * problem, not a hypothetical one — confirmed this session: scanning
+ * ~/Pictures pulled a file out of "Photo Booth Library/Pictures/", which
+ * would make Photo Booth itself show one fewer photo in its own history.
+ * This is a pragmatic denylist of the cases actually observed, not an
+ * attempt at exhaustively detecting every possible macOS bundle type.
+ */
+export function isAppManagedDirectory(name: string): boolean {
+  const lower = name.toLowerCase();
+  if (KNOWN_APP_MANAGED_DIR_NAMES.has(lower)) return true;
+  return BUNDLE_SUFFIXES.some((suffix) => lower.endsWith(suffix));
+}
+
 export interface ScannedFile {
   absolutePath: string;
   filename: string;
@@ -42,6 +62,7 @@ async function walk(dir: string, results: ScannedFile[]): Promise<void> {
     const full = join(dir, entry.name);
 
     if (entry.isDirectory()) {
+      if (isAppManagedDirectory(entry.name)) continue;
       await walk(full, results);
       continue;
     }
