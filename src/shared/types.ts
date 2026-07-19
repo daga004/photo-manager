@@ -30,6 +30,7 @@ export interface MediaRecord {
   quarantineReason: string | null;
   thumbnailStatus: ThumbnailStatus;
   thumbnailPath: string | null;
+  isUndated: boolean;
 }
 
 export type JobType = "import" | "reindex" | "device_import";

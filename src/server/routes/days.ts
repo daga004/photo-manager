@@ -1,6 +1,20 @@
 import { Database } from "bun:sqlite";
-import { getDayAggregates, getDayItems } from "../db.ts";
-import type { DayItem } from "../../shared/types.ts";
+import { countUndated, getDayAggregates, getDayItems, getUndatedItems } from "../db.ts";
+import type { DayItem, MediaRecord } from "../../shared/types.ts";
+
+function toDayItems(media: MediaRecord[]): DayItem[] {
+  return media.map((m) => ({
+    id: m.id,
+    filename: m.filename,
+    mediaType: m.mediaType,
+    extension: m.extension,
+    sizeBytes: m.sizeBytes,
+    width: m.width,
+    height: m.height,
+    durationSeconds: m.durationSeconds,
+    thumbnailUrl: `/api/media/${m.id}/thumbnail`,
+  }));
+}
 
 export function makeDaysListHandler(db: Database) {
   return (req: Request): Response => {
@@ -20,18 +34,12 @@ export function makeDaysListHandler(db: Database) {
 export function makeDayDetailHandler(db: Database) {
   return (req: Bun.BunRequest<"/api/days/:date">): Response => {
     const date = req.params.date;
-    const media = getDayItems(db, date);
-    const items: DayItem[] = media.map((m) => ({
-      id: m.id,
-      filename: m.filename,
-      mediaType: m.mediaType,
-      extension: m.extension,
-      sizeBytes: m.sizeBytes,
-      width: m.width,
-      height: m.height,
-      durationSeconds: m.durationSeconds,
-      thumbnailUrl: `/api/media/${m.id}/thumbnail`,
-    }));
-    return Response.json({ date, items });
+    return Response.json({ date, items: toDayItems(getDayItems(db, date)) });
+  };
+}
+
+export function makeUndatedHandler(db: Database) {
+  return (_req: Request): Response => {
+    return Response.json({ count: countUndated(db), items: toDayItems(getUndatedItems(db)) });
   };
 }

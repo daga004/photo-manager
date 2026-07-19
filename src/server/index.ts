@@ -6,7 +6,7 @@ import {
   makeSettingsGetHandler,
   makeSettingsUpdateHandler,
 } from "./routes/settings.ts";
-import { makeDaysListHandler, makeDayDetailHandler } from "./routes/days.ts";
+import { makeDaysListHandler, makeDayDetailHandler, makeUndatedHandler } from "./routes/days.ts";
 import { makeMediaDetailHandler, makeMediaFullHandler, makeMediaRestoreHandler } from "./routes/media.ts";
 import { makePreviewHandler, makeThumbnailHandler } from "./routes/thumbnails.ts";
 import { makeImportHandler, makeDeviceImportHandler } from "./routes/import.ts";
@@ -41,6 +41,7 @@ const server = Bun.serve({
 
     "/api/days": makeDaysListHandler(db),
     "/api/days/:date": makeDayDetailHandler(db),
+    "/api/undated": makeUndatedHandler(db),
 
     "/api/media/:id": makeMediaDetailHandler(db),
     "/api/media/:id/full": makeMediaFullHandler(db),

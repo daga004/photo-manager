@@ -104,6 +104,7 @@ interface MediaRow {
   quarantine_reason: string | null;
   thumbnail_status: string;
   thumbnail_path: string | null;
+  is_undated: number;
 }
 
 function rowToMediaRecord(row: MediaRow): MediaRecord {
@@ -133,6 +134,7 @@ function rowToMediaRecord(row: MediaRow): MediaRecord {
     quarantineReason: row.quarantine_reason,
     thumbnailStatus: row.thumbnail_status as MediaRecord["thumbnailStatus"],
     thumbnailPath: row.thumbnail_path,
+    isUndated: row.is_undated === 1,
   };
 }
 
@@ -160,7 +162,7 @@ export function getDayAggregates(
          SUM(CASE WHEN media_type = 'video' THEN 1 ELSE 0 END) AS videoCount,
          SUM(size_bytes) AS totalSizeBytes
        FROM media
-       WHERE status = 'active' ${typeFilter}
+       WHERE status = 'active' AND is_undated = 0 ${typeFilter}
        GROUP BY capture_date
        ORDER BY ${column} ${direction}`,
     )
@@ -176,9 +178,30 @@ export function getDayAggregates(
 
 export function getDayItems(database: Database, date: string): MediaRecord[] {
   const rows = database
-    .query("SELECT * FROM media WHERE status = 'active' AND capture_date = ? ORDER BY filename ASC")
+    .query("SELECT * FROM media WHERE status = 'active' AND is_undated = 0 AND capture_date = ? ORDER BY filename ASC")
     .all(date) as MediaRow[];
   return rows.map(rowToMediaRecord);
+}
+
+export function countUndated(database: Database): number {
+  const row = database.query("SELECT COUNT(*) c FROM media WHERE status = 'active' AND is_undated = 1").get() as { c: number };
+  return row.c;
+}
+
+export function getUndatedItems(database: Database): MediaRecord[] {
+  const rows = database
+    .query("SELECT * FROM media WHERE status = 'active' AND is_undated = 1 ORDER BY filename ASC")
+    .all() as MediaRow[];
+  return rows.map(rowToMediaRecord);
+}
+
+/** Marks a media row undated and points it at its new relocated path, in one
+ * update — the file move + this update keep the index consistent, so no
+ * reindex is needed. */
+export function markUndated(database: Database, mediaId: number, newPath: string, newRelativePath: string): void {
+  database
+    .query("UPDATE media SET is_undated = 1, path = ?, relative_path = ? WHERE id = ?")
+    .run(newPath, newRelativePath, mediaId);
 }
 
 export interface DuplicateGroupRow {

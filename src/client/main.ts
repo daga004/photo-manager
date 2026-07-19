@@ -5,6 +5,7 @@ import { renderImport } from "./views/importView.ts";
 import { renderReindex } from "./views/reindexView.ts";
 import { renderSettings } from "./views/settingsView.ts";
 import { renderOnboarding } from "./views/onboardingView.ts";
+import { renderUndated } from "./views/undatedView.ts";
 import { getSettings } from "./api.ts";
 
 const app = document.getElementById("app");
@@ -73,6 +74,9 @@ async function route(): Promise<void> {
     } else if (path === "reindex") {
       setActiveNav("reindex");
       await renderReindex(app);
+    } else if (path === "undated") {
+      setActiveNav("days");
+      await renderUndated(app);
     } else if (path === "settings") {
       setActiveNav("settings");
       await renderSettings(app);

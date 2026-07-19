@@ -25,6 +25,10 @@ export function getDayItems(date: string): Promise<{ date: string; items: DayIte
   return jsonFetch(`/api/days/${encodeURIComponent(date)}`);
 }
 
+export function getUndated(): Promise<{ count: number; items: DayItem[] }> {
+  return jsonFetch("/api/undated");
+}
+
 export function getMedia(id: number): Promise<MediaRecord> {
   return jsonFetch(`/api/media/${id}`);
 }
