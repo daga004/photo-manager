@@ -122,6 +122,12 @@ function renderBulkProgress(
     <div class="dup-bulk-progress">
       <div class="progress-bar"><div class="progress-bar-fill" id="dup-bulk-fill" style="width:0%"></div></div>
       <div class="progress-stats" id="dup-bulk-stats">Starting… 0 / ${totalGroups} groups</div>
+      <p class="hint dup-verify-note">
+        Duplicates are <em>found</em> with a fast approximate fingerprint (so indexing stays quick),
+        but before each file is deleted it's re-checked with a full exact byte-comparison. That extra
+        check can take a while, and it's what guarantees a look-alike that isn't truly identical is
+        never deleted by mistake.
+      </p>
     </div>
   `;
   const fill = container.querySelector<HTMLElement>("#dup-bulk-fill");
@@ -153,6 +159,7 @@ function renderToolbar(container: HTMLElement, groups: DuplicateGroup[]): void {
       <button data-action="delete-all" class="danger">Delete all duplicates (keep selected in each)</button>
     </div>
     <p class="hint">Default keeps the shortest filename in each group (usually the original). Change the selection per group below before deleting if you want to keep a different copy.</p>
+    <p class="hint">Groups are found by a fast approximate fingerprint; deletion runs a full exact byte-check first, so it can be slower but never removes a look-alike that isn't truly identical.</p>
   `;
 }
 
