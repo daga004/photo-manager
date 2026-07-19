@@ -37,6 +37,25 @@ nav {
   border-bottom: 1px solid var(--border);
 }
 
+nav.hidden {
+  display: none;
+}
+
+.onboarding {
+  max-width: 640px;
+  margin: 2rem auto;
+}
+
+.onboarding h1 {
+  margin-bottom: 0.5rem;
+}
+
+.onboarding-steps {
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 1rem 0 1.5rem;
+}
+
 nav a {
   color: var(--muted);
   text-decoration: none;
