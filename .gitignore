@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Local data — SQLite index, thumbnail cache, quarantine, scratch files.
+# This is the entire reason this repo is safe to make public: the DB and
+# cache contain real file paths, filenames, and personal photo metadata.
+data/
+
+# Build output
+dist/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# OS cruft
+.DS_Store
+._*
+
+# Editor
+.vscode/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
