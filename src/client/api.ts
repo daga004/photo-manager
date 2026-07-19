@@ -73,6 +73,10 @@ export function resumeJob(jobId: number): Promise<{ resumed: true }> {
   return jsonFetch(`/api/jobs/${jobId}/resume`, { method: "POST" });
 }
 
+export function pauseJob(jobId: number): Promise<{ pausing: true }> {
+  return jsonFetch(`/api/jobs/${jobId}/pause`, { method: "POST" });
+}
+
 export function getDuplicates(includeResolved = false): Promise<DuplicateGroup[]> {
   return jsonFetch(`/api/duplicates?includeResolved=${includeResolved}`);
 }
@@ -81,7 +85,7 @@ export function resolveDuplicate(
   contentHash: string,
   keepMediaId: number,
   action: "delete_extras" | "ignore",
-): Promise<{ quarantinedCount: number; keptMediaId: number }> {
+): Promise<{ quarantinedCount: number; keptMediaId: number; skippedNotIdentical?: number[] }> {
   return jsonFetch("/api/duplicates/resolve", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -23,8 +23,12 @@ export function getDb(): Database {
   mkdirSync(config.dataDir, { recursive: true });
   db = new Database(config.dbPath, { create: true });
   db.exec("PRAGMA journal_mode = WAL;");
-  db.exec("PRAGMA foreign_keys = ON;");
+  // Foreign keys are enabled AFTER migrations, not before: SQLite's supported
+  // way to change a table that other tables reference (e.g. altering a CHECK
+  // constraint) is create-new/copy/drop-old/rename with FK enforcement off, so
+  // the drop doesn't fight child foreign keys. Normal operation runs with FKs on.
   runMigrations(db);
+  db.exec("PRAGMA foreign_keys = ON;");
   return db;
 }
 

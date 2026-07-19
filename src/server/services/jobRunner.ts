@@ -3,6 +3,7 @@ import { createImportJob, findActiveJob, getImportJob, updateImportJob } from ".
 import { runImportJob } from "./importJob.ts";
 import { runReindexJob } from "./reindexJob.ts";
 import { runDeviceImportJob } from "./deviceImportJob.ts";
+import { clearPause, requestPause } from "./jobControl.ts";
 
 /**
  * Bun is single-threaded, but these jobs are I/O-bound (subprocess spawns,
@@ -36,6 +37,7 @@ export function startImportJob(db: Database, sourcePath: string): StartResult {
   if (!guard.ok) return guard;
 
   const jobId = createImportJob(db, { jobType: "import", sourcePath });
+  clearPause(jobId);
   void runImportJob(db, jobId, sourcePath).catch((err) => logUnhandled(jobId, err));
   return { ok: true, jobId };
 }
@@ -45,6 +47,7 @@ export function startReindexJob(db: Database): StartResult {
   if (!guard.ok) return guard;
 
   const jobId = createImportJob(db, { jobType: "reindex" });
+  clearPause(jobId);
   void runReindexJob(db, jobId).catch((err) => logUnhandled(jobId, err));
   return { ok: true, jobId };
 }
@@ -64,26 +67,44 @@ export function startDeviceImportJob(
     deviceName,
     deleteAfterVerify,
   });
+  clearPause(jobId);
   void runDeviceImportJob(db, jobId, udid, deleteAfterVerify).catch((err) => logUnhandled(jobId, err));
   return { ok: true, jobId };
 }
 
 /**
- * Resumes a `stalled` or `failed` job by re-invoking its run function
- * against the SAME jobId — every run function is written to pick up from
- * persisted per-file/per-item state rather than starting over, so this is
+ * Requests a cooperative pause of a running job. The job loop notices at its
+ * next chunk checkpoint, persists progress, and flips itself to 'paused'. This
+ * lets the user pause a long reindex, run an import (allowed because a paused
+ * job isn't "active"), then resume the reindex where it left off.
+ */
+export function pauseJob(db: Database, jobId: number): { ok: true } | { ok: false; error: string } {
+  const job = getImportJob(db, jobId);
+  if (!job) return { ok: false, error: `No such job: ${jobId}` };
+  if (job.status !== "running") {
+    return { ok: false, error: `Job ${jobId} is '${job.status}', not running — nothing to pause` };
+  }
+  requestPause(jobId);
+  return { ok: true };
+}
+
+/**
+ * Resumes a `stalled`, `failed`, or `paused` job by re-invoking its run
+ * function against the SAME jobId — every run function is written to pick up
+ * from persisted per-file/per-item state rather than starting over, so this is
  * just "run it again."
  */
 export function resumeJob(db: Database, jobId: number): { ok: true } | { ok: false; error: string } {
   const job = getImportJob(db, jobId);
   if (!job) return { ok: false, error: `No such job: ${jobId}` };
-  if (job.status !== "stalled" && job.status !== "failed") {
+  if (job.status !== "stalled" && job.status !== "failed" && job.status !== "paused") {
     return { ok: false, error: `Job ${jobId} is '${job.status}', not resumable` };
   }
 
   const guard = guardNoActiveJob(db);
   if (!guard.ok) return guard;
 
+  clearPause(jobId);
   updateImportJob(db, jobId, { status: "running" });
 
   if (job.jobType === "import") {

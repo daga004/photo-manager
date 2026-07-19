@@ -15,6 +15,12 @@ import { batchExtractMetadata, type ExifMetadata } from "./exif.ts";
 import { sampledFingerprint } from "./hash.ts";
 import { resolveCaptureDate } from "./dateFallback.ts";
 import { runWithConcurrency, yieldToEventLoop } from "./concurrency.ts";
+import { isPauseRequested } from "./jobControl.ts";
+
+/** Files fingerprinted + inserted per chunk. Chunking bounds how much work a
+ * pause discards (at most one chunk) and lets progress/inserts stream steadily
+ * instead of all inserts happening after all fingerprinting. */
+const REINDEX_CHUNK_SIZE = 200;
 
 /**
  * Walks the existing library in place (photos/ and videos/ under the
@@ -22,10 +28,8 @@ import { runWithConcurrency, yieldToEventLoop } from "./concurrency.ts";
  * files — reindex only ever catches up an existing archive to the index.
  *
  * Resumable by construction: re-running against the same jobId re-scans
- * (cheap) and skips any path already present in `media`, so a restart after
- * a crash continues rather than redoing already-indexed files. Skipped
- * files still count toward filesProcessed so the counter keeps climbing
- * across a resume instead of appearing to reset.
+ * (cheap) and skips any path already present in `media`, so a restart or a
+ * pause continues rather than redoing already-indexed files.
  *
  * Unlike folder import, reindex does NOT quarantine hash-duplicates — these
  * files are already in their rightful place with nothing to move away from;
@@ -36,45 +40,43 @@ export async function runReindexJob(db: Database, jobId: number): Promise<void> 
     const scanned = [...(await scanDirectory(config.photosDir)), ...(await scanDirectory(config.videosDir))];
     updateImportJob(db, jobId, { filesFound: scanned.length });
 
-    if (scanned.length === 0) {
-      updateImportJob(db, jobId, { status: "completed", finishedAt: new Date().toISOString() });
-      return;
-    }
-
     const pending = scanned.filter((f) => !findMediaByPath(db, f.absolutePath));
     const alreadyIndexedCount = scanned.length - pending.length;
     // SET (not increment) filesProcessed to the count already in the index, so
-    // a resume reports the true running total (already-indexed + newly-done)
-    // rather than adding the already-indexed count on top of the previous
-    // run's counter — which would push filesProcessed past filesFound.
+    // a resume reports the true running total rather than stacking the
+    // already-indexed count on top of the previous run's counter.
     updateImportJob(db, jobId, { filesProcessed: alreadyIndexedCount });
 
-    if (pending.length > 0) {
-      // Sampled fingerprint (~128KB/file) instead of a full-content read —
-      // this is the whole point of the speedup. filesProcessed is bumped per
-      // file as each fingerprint completes so the progress bar tracks it live.
-      const hashes = await runWithConcurrency(pending, HASH_CONCURRENCY, async (f) => {
-        const hash = await sampledFingerprint(f.absolutePath);
-        incrementImportJobCounters(db, jobId, { filesProcessed: 1 });
-        return hash;
-      });
-      const metaMap = await batchExtractMetadata(pending.map((f) => f.absolutePath));
+    for (let start = 0; start < pending.length; start += REINDEX_CHUNK_SIZE) {
+      // Pause checkpoint — only between chunks, where every prior chunk is
+      // already fully persisted, so a pause never loses committed work.
+      if (isPauseRequested(jobId)) {
+        updateImportJob(db, jobId, { status: "paused" });
+        return;
+      }
 
-      for (let i = 0; i < pending.length; i++) {
-        const file = pending[i] as ScannedFile;
-        const hash = hashes[i] as string;
+      const chunk = pending.slice(start, start + REINDEX_CHUNK_SIZE);
+
+      // Fingerprint (~128KB read) and stat each file concurrently. Capturing
+      // size+mtime here means the insert step needs no second stat round-trip.
+      const prepared = await runWithConcurrency(chunk, HASH_CONCURRENCY, async (f) => {
+        const [hash, st] = await Promise.all([sampledFingerprint(f.absolutePath), stat(f.absolutePath)]);
+        incrementImportJobCounters(db, jobId, { filesProcessed: 1 });
+        return { file: f, hash, sizeBytes: st.size, mtimeMs: st.mtimeMs };
+      });
+
+      const metaMap = await batchExtractMetadata(chunk.map((f) => f.absolutePath));
+
+      for (const p of prepared) {
         try {
-          await reindexOneFile(db, file, hash, metaMap.get(file.absolutePath));
+          insertReindexRow(db, p.file, p.hash, p.sizeBytes, p.mtimeMs, metaMap.get(p.file.absolutePath));
           incrementImportJobCounters(db, jobId, { filesImported: 1 });
-          logImportJobEvent(db, jobId, file.absolutePath, "imported", null);
         } catch (err) {
           incrementImportJobCounters(db, jobId, { filesErrored: 1 });
-          logImportJobEvent(db, jobId, file.absolutePath, "error", err instanceof Error ? err.message : String(err));
+          logImportJobEvent(db, jobId, p.file.absolutePath, "error", err instanceof Error ? err.message : String(err));
         }
-        // See concurrency.ts's yieldToEventLoop doc comment: without this, a
-        // long sequential per-file loop starves concurrent HTTP handling.
-        await yieldToEventLoop();
       }
+      await yieldToEventLoop();
     }
 
     updateImportJob(db, jobId, { status: "completed", finishedAt: new Date().toISOString() });
@@ -87,17 +89,18 @@ export async function runReindexJob(db: Database, jobId: number): Promise<void> 
   }
 }
 
-async function reindexOneFile(
+function insertReindexRow(
   db: Database,
   file: ScannedFile,
   hash: string,
+  sizeBytes: number,
+  mtimeMs: number,
   meta: ExifMetadata | undefined,
-): Promise<void> {
-  const srcStat = await stat(file.absolutePath);
+): void {
   const { captureDate, captureDatetime, dateSource } = resolveCaptureDate({
     dateTimeOriginal: meta?.dateTimeOriginal,
     createDate: meta?.createDate,
-    fileMtimeMs: srcStat.mtimeMs,
+    fileMtimeMs: mtimeMs,
   });
 
   insertMedia(db, {
@@ -109,7 +112,7 @@ async function reindexOneFile(
     captureDate,
     captureDatetime,
     dateSource,
-    sizeBytes: srcStat.size,
+    sizeBytes,
     contentHash: hash,
     width: meta?.imageWidth ?? null,
     height: meta?.imageHeight ?? null,

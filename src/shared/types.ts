@@ -33,7 +33,7 @@ export interface MediaRecord {
 }
 
 export type JobType = "import" | "reindex" | "device_import";
-export type JobStatus = "pending" | "running" | "stalled" | "completed" | "failed" | "cancelled";
+export type JobStatus = "pending" | "running" | "stalled" | "paused" | "completed" | "failed" | "cancelled";
 
 export interface ImportJobRecord {
   id: number;

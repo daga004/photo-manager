@@ -6,7 +6,13 @@ import { makeMediaDetailHandler, makeMediaFullHandler, makeMediaRestoreHandler }
 import { makeThumbnailHandler } from "./routes/thumbnails.ts";
 import { makeImportHandler, makeDeviceImportHandler } from "./routes/import.ts";
 import { makeReindexHandler } from "./routes/reindex.ts";
-import { makeJobDetailHandler, makeJobEventsHandler, makeJobListHandler, makeJobResumeHandler } from "./routes/jobs.ts";
+import {
+  makeJobDetailHandler,
+  makeJobEventsHandler,
+  makeJobListHandler,
+  makeJobPauseHandler,
+  makeJobResumeHandler,
+} from "./routes/jobs.ts";
 import { makeDuplicatesListHandler, makeDuplicatesResolveHandler } from "./routes/duplicates.ts";
 import { makeDevicesListHandler } from "./routes/devices.ts";
 
@@ -41,6 +47,7 @@ const server = Bun.serve({
     "/api/jobs/:jobId": makeJobDetailHandler(db),
     "/api/jobs/:jobId/events": makeJobEventsHandler(db),
     "/api/jobs/:jobId/resume": { POST: makeJobResumeHandler(db) },
+    "/api/jobs/:jobId/pause": { POST: makeJobPauseHandler(db) },
 
     "/api/duplicates": makeDuplicatesListHandler(db),
     "/api/duplicates/resolve": { POST: makeDuplicatesResolveHandler(db) },

@@ -258,6 +258,17 @@ button:hover {
   font-size: 0.85rem;
 }
 
+.progress-substep {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 0.15rem;
+  opacity: 0.85;
+}
+
+.dup-bulk-progress {
+  margin-bottom: 0.5rem;
+}
+
 .progress-error {
   color: var(--danger);
   font-size: 0.85rem;
@@ -305,4 +316,18 @@ button:hover {
   border-color: var(--danger);
   color: var(--danger);
   margin-right: 0.5rem;
+}
+
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.dup-toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
 }

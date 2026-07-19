@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { getImportJob, listImportJobEvents, listImportJobs } from "../db.ts";
-import { resumeJob } from "../services/jobRunner.ts";
+import { pauseJob, resumeJob } from "../services/jobRunner.ts";
 
 export function makeJobDetailHandler(db: Database) {
   return (req: Bun.BunRequest<"/api/jobs/:jobId">): Response => {
@@ -33,5 +33,13 @@ export function makeJobResumeHandler(db: Database) {
     const result = resumeJob(db, Number(req.params.jobId));
     if (!result.ok) return Response.json({ error: result.error }, { status: 409 });
     return Response.json({ resumed: true });
+  };
+}
+
+export function makeJobPauseHandler(db: Database) {
+  return (req: Bun.BunRequest<"/api/jobs/:jobId/pause">): Response => {
+    const result = pauseJob(db, Number(req.params.jobId));
+    if (!result.ok) return Response.json({ error: result.error }, { status: 409 });
+    return Response.json({ pausing: true });
   };
 }

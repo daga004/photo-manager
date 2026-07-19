@@ -10,10 +10,12 @@ import { SAMPLE_CHUNK_BYTES } from "../../shared/constants.ts";
  * Files at or below 2 chunks are hashed in full — it's already cheap, and it
  * makes small files (screenshots, etc.) exact with zero collision risk.
  *
- * This is a STRONG duplicate signal (two distinct real photos/videos
- * essentially never share size + head + tail), but not a proof of equality:
- * anything that would DELETE a file based on a fingerprint match must first
- * confirm with fullHash/verifyIdentical below.
+ * Note the byte size is part of the fingerprint, so two files with the same
+ * fingerprint necessarily have the same size — a "same fingerprint, different
+ * size" pair can't occur short of a SHA-256 collision. This is still only a
+ * STRONG duplicate signal, not proof of equality (the un-sampled middle of two
+ * large files could differ), so anything that would DELETE a file based on a
+ * fingerprint match must confirm with verifyIdentical below.
  */
 export async function sampledFingerprint(path: string): Promise<string> {
   const file = Bun.file(path);
@@ -31,29 +33,50 @@ export async function sampledFingerprint(path: string): Promise<string> {
 }
 
 /**
- * Full-content sha256, streamed so it never loads the whole file into memory.
- * Used only to VERIFY a small set of fingerprint-collision candidates before
- * a destructive action — never for bulk indexing (that's what
- * sampledFingerprint is for).
- */
-export async function fullHash(path: string): Promise<string> {
-  const hasher = new Bun.CryptoHasher("sha256");
-  const reader = Bun.file(path).stream().getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    hasher.update(value);
-  }
-  return hasher.digest("hex");
-}
-
-/**
- * Returns true only if BOTH files are byte-for-byte identical, determined by
- * comparing their full-content hashes. This is the escalation step that makes
- * sampled fingerprinting safe for the delete path: a fingerprint collision
- * (rare) is confirmed here before anything is quarantined.
+ * Definitively determines whether two files are byte-for-byte identical. This
+ * is the escalation step that makes sampled fingerprinting safe for the delete
+ * path: a fingerprint collision (rare) is confirmed here before anything is
+ * quarantined. It escalates cheapest-check-first:
+ *
+ *   1. compare byte sizes — unequal => definitely different, with ZERO reads;
+ *   2. stream both files and compare chunk-by-chunk, returning false at the
+ *      first differing byte, so a same-size-but-different pair reads only up to
+ *      the first mismatch rather than both files end-to-end.
+ *
+ * A direct byte comparison (rather than comparing two full hashes) is used
+ * deliberately: it's the unarguable ground truth for a destructive decision,
+ * and it needs only one read of each file with early exit.
  */
 export async function verifyIdentical(pathA: string, pathB: string): Promise<boolean> {
-  const [a, b] = await Promise.all([fullHash(pathA), fullHash(pathB)]);
-  return a === b;
+  const a = Bun.file(pathA);
+  const b = Bun.file(pathB);
+  if (a.size !== b.size) return false;
+  const size = a.size;
+  if (size === 0) return true;
+
+  const ra = a.stream().getReader();
+  const rb = b.stream().getReader();
+  let leftA = new Uint8Array(0);
+  let leftB = new Uint8Array(0);
+  let compared = 0;
+
+  while (compared < size) {
+    const refills: Promise<void>[] = [];
+    if (leftA.length === 0) refills.push(ra.read().then((r) => void (leftA = r.value ?? new Uint8Array(0))));
+    if (leftB.length === 0) refills.push(rb.read().then((r) => void (leftB = r.value ?? new Uint8Array(0))));
+    if (refills.length) await Promise.all(refills);
+
+    // A stable file whose stat size we trust should never run dry early; if it
+    // does (truncated mid-read), treat as not-identical rather than looping.
+    if (leftA.length === 0 || leftB.length === 0) return false;
+
+    const n = Math.min(leftA.length, leftB.length);
+    for (let i = 0; i < n; i++) {
+      if (leftA[i] !== leftB[i]) return false;
+    }
+    leftA = leftA.subarray(n);
+    leftB = leftB.subarray(n);
+    compared += n;
+  }
+  return true;
 }
