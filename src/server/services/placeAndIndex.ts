@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { basename, dirname, join } from "node:path";
 import { stat } from "node:fs/promises";
 import { findActiveMediaByHash, findActiveMediaInDirectory, insertMedia } from "../db.ts";
-import { config } from "../config.ts";
+import { getLibraryRoot } from "../config.ts";
 import { baseNameNoExt, type MediaType } from "../../shared/extensions.ts";
 import type { ExifMetadata } from "./exif.ts";
 import { resolveCaptureDate } from "./dateFallback.ts";
@@ -66,7 +66,7 @@ export async function placeAndIndexFile(db: Database, params: PlaceAndIndexParam
   const existingNames = findActiveMediaInDirectory(db, destRelativeDir).map((e) => e.name);
   const finalFilename = allocateFilename(params.filename, existingNames);
   const destRelativePath = join(destRelativeDir, finalFilename);
-  const destAbsolutePath = join(config.libraryRoot, destRelativePath);
+  const destAbsolutePath = join(getLibraryRoot(),destRelativePath);
 
   await safeMoveFile(params.localSourcePath, destAbsolutePath);
 
@@ -77,7 +77,7 @@ export async function placeAndIndexFile(db: Database, params: PlaceAndIndexParam
       const companionExt = companionSourceName.slice(companionSourceName.lastIndexOf("."));
       const companionDestName = baseNameNoExt(finalFilename) + companionExt;
       const companionDestRelative = join(destRelativeDir, companionDestName);
-      await safeMoveFile(params.companionAaePath, join(config.libraryRoot, companionDestRelative));
+      await safeMoveFile(params.companionAaePath, join(getLibraryRoot(),companionDestRelative));
       companionRelativePath = companionDestRelative;
     } catch {
       // Non-fatal: the main file is already safely placed; the sidecar just

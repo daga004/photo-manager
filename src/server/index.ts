@@ -1,6 +1,11 @@
 import indexHtml from "../client/index.html";
 import { getDb, reconcileStuckJobs } from "./db.ts";
-import { config } from "./config.ts";
+import { config, getLibraryRoot } from "./config.ts";
+import {
+  loadLibraryRootFromSettings,
+  makeSettingsGetHandler,
+  makeSettingsUpdateHandler,
+} from "./routes/settings.ts";
 import { makeDaysListHandler, makeDayDetailHandler } from "./routes/days.ts";
 import { makeMediaDetailHandler, makeMediaFullHandler, makeMediaRestoreHandler } from "./routes/media.ts";
 import { makeThumbnailHandler } from "./routes/thumbnails.ts";
@@ -20,6 +25,8 @@ const db = getDb();
 // Only the real, long-lived server process should ever reconcile stuck jobs —
 // see db.ts's getDb() doc comment for why this must not live inside getDb() itself.
 reconcileStuckJobs(db);
+// Apply the persisted library root (if the user configured one) before serving.
+loadLibraryRootFromSettings(db);
 
 const server = Bun.serve({
   port: config.port,
@@ -27,7 +34,10 @@ const server = Bun.serve({
     "/": indexHtml,
 
     "/api/health": () =>
-      Response.json({ status: "ok", dbPath: config.dbPath, libraryRoot: config.libraryRoot }),
+      Response.json({ status: "ok", dbPath: config.dbPath, libraryRoot: getLibraryRoot() }),
+
+    "/api/settings": makeSettingsGetHandler(db),
+    "/api/settings/update": { POST: makeSettingsUpdateHandler(db) },
 
     "/api/days": makeDaysListHandler(db),
     "/api/days/:date": makeDayDetailHandler(db),
@@ -58,5 +68,5 @@ const server = Bun.serve({
 });
 
 console.log(`photo-manager listening on http://localhost:${server.port}`);
-console.log(`  library root: ${config.libraryRoot}`);
+console.log(`  library root: ${getLibraryRoot()}`);
 console.log(`  data dir:     ${config.dataDir}`);

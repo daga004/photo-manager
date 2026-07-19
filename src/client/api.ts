@@ -77,6 +77,27 @@ export function pauseJob(jobId: number): Promise<{ pausing: true }> {
   return jsonFetch(`/api/jobs/${jobId}/pause`, { method: "POST" });
 }
 
+export interface SettingsInfo {
+  libraryRoot: string;
+  isDefault: boolean;
+  defaultLibraryRoot: string;
+  dataDir: string;
+  photosDir: string;
+  videosDir: string;
+}
+
+export function getSettings(): Promise<SettingsInfo> {
+  return jsonFetch("/api/settings");
+}
+
+export function updateLibraryRoot(libraryRoot: string): Promise<{ libraryRoot: string }> {
+  return jsonFetch("/api/settings/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ libraryRoot }),
+  });
+}
+
 export function getDuplicates(includeResolved = false): Promise<DuplicateGroup[]> {
   return jsonFetch(`/api/duplicates?includeResolved=${includeResolved}`);
 }

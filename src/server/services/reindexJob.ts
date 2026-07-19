@@ -8,7 +8,7 @@ import {
   logImportJobEvent,
   updateImportJob,
 } from "../db.ts";
-import { config } from "../config.ts";
+import { getLibraryRoot, getPhotosDir, getVideosDir } from "../config.ts";
 import { HASH_CONCURRENCY } from "../../shared/constants.ts";
 import { scanDirectory, type ScannedFile } from "./scanner.ts";
 import { batchExtractMetadata, type ExifMetadata } from "./exif.ts";
@@ -37,7 +37,7 @@ const REINDEX_CHUNK_SIZE = 200;
  */
 export async function runReindexJob(db: Database, jobId: number): Promise<void> {
   try {
-    const scanned = [...(await scanDirectory(config.photosDir)), ...(await scanDirectory(config.videosDir))];
+    const scanned = [...(await scanDirectory(getPhotosDir())), ...(await scanDirectory(getVideosDir()))];
     updateImportJob(db, jobId, { filesFound: scanned.length });
 
     const pending = scanned.filter((f) => !findMediaByPath(db, f.absolutePath));
@@ -105,7 +105,7 @@ function insertReindexRow(
 
   insertMedia(db, {
     path: file.absolutePath,
-    relativePath: relative(config.libraryRoot, file.absolutePath),
+    relativePath: relative(getLibraryRoot(),file.absolutePath),
     filename: file.filename,
     extension: file.extension,
     mediaType: file.mediaType,
@@ -117,7 +117,7 @@ function insertReindexRow(
     width: meta?.imageWidth ?? null,
     height: meta?.imageHeight ?? null,
     durationSeconds: meta?.duration ?? null,
-    companionAaePath: file.companionAaePath ? relative(config.libraryRoot, file.companionAaePath) : null,
+    companionAaePath: file.companionAaePath ? relative(getLibraryRoot(),file.companionAaePath) : null,
     sourcePath: null,
     importedAt: null,
   });

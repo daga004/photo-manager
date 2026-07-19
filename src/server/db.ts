@@ -388,6 +388,22 @@ function rowToImportJobRecord(row: ImportJobRow): ImportJobRecord {
   };
 }
 
+// --- settings -------------------------------------------------------------
+
+export function getSetting(database: Database, key: string): string | null {
+  const row = database.query("SELECT value FROM settings WHERE key = ?").get(key) as { value: string } | null;
+  return row ? row.value : null;
+}
+
+export function setSetting(database: Database, key: string, value: string): void {
+  database
+    .query(
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+    )
+    .run(key, value, new Date().toISOString());
+}
+
 export function getImportJob(database: Database, jobId: number): ImportJobRecord | null {
   const row = database.query("SELECT * FROM import_jobs WHERE id = ?").get(jobId) as ImportJobRow | null;
   return row ? rowToImportJobRecord(row) : null;

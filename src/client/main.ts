@@ -3,6 +3,7 @@ import { renderDayDetail } from "./views/dayDetailView.ts";
 import { renderDuplicates } from "./views/duplicatesView.ts";
 import { renderImport } from "./views/importView.ts";
 import { renderReindex } from "./views/reindexView.ts";
+import { renderSettings } from "./views/settingsView.ts";
 
 const app = document.getElementById("app");
 
@@ -43,6 +44,9 @@ async function route(): Promise<void> {
     } else if (path === "reindex") {
       setActiveNav("reindex");
       await renderReindex(app);
+    } else if (path === "settings") {
+      setActiveNav("settings");
+      await renderSettings(app);
     } else {
       setActiveNav("days");
       await renderDayList(app, navigate);
