@@ -114,7 +114,7 @@ export function resolveDuplicate(
   contentHash: string,
   keepMediaId: number,
   action: "delete_extras" | "ignore",
-): Promise<{ quarantinedCount: number; keptMediaId: number; skippedNotIdentical?: number[] }> {
+): Promise<{ quarantinedCount: number; keptMediaId: number; failed?: number[] }> {
   return jsonFetch("/api/duplicates/resolve", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

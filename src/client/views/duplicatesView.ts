@@ -55,7 +55,6 @@ export async function renderDuplicates(container: HTMLElement): Promise<void> {
     const progress = renderBulkProgress(toolbar!, jobs.length);
     button.disabled = true;
     let quarantined = 0;
-    let skipped = 0;
     let errors = 0;
     try {
       for (let i = 0; i < jobs.length; i++) {
@@ -63,17 +62,16 @@ export async function renderDuplicates(container: HTMLElement): Promise<void> {
         try {
           const res = await resolveDuplicate(j.contentHash, j.keepMediaId, "delete_extras");
           quarantined += res.quarantinedCount ?? 0;
-          skipped += res.skippedNotIdentical?.length ?? 0;
+          errors += res.failed?.length ?? 0;
         } catch {
           errors++;
         }
-        progress.update(i + 1, quarantined, skipped, errors);
+        progress.update(i + 1, quarantined, errors);
       }
     } finally {
       await load();
       const parts = [`Deleted ${quarantined} duplicate file(s)`];
-      if (skipped > 0) parts.push(`${skipped} left in place (byte-check showed they weren't identical)`);
-      if (errors > 0) parts.push(`${errors} group(s) errored`);
+      if (errors > 0) parts.push(`${errors} could not be moved (originals kept)`);
       alert(parts.join(". ") + ".");
     }
   });
@@ -97,8 +95,8 @@ export async function renderDuplicates(container: HTMLElement): Promise<void> {
       button.disabled = true;
       try {
         const res = await resolveDuplicate(contentHash, keepMediaId, "delete_extras");
-        if (res.skippedNotIdentical?.length) {
-          alert(`${res.skippedNotIdentical.length} file(s) were left in place — a full byte-check showed they weren't actually identical.`);
+        if (res.failed?.length) {
+          alert(`${res.failed.length} file(s) could not be moved and were left in place (originals kept).`);
         }
         await load();
       } catch (err) {
@@ -127,31 +125,29 @@ export async function renderDuplicates(container: HTMLElement): Promise<void> {
 function renderBulkProgress(
   container: HTMLElement,
   totalGroups: number,
-): { update: (done: number, quarantined: number, skipped: number, errors: number) => void } {
+): { update: (done: number, quarantined: number, errors: number) => void } {
   container.innerHTML = `
     <div class="dup-bulk-progress">
       <div class="progress-bar"><div class="progress-bar-fill" id="dup-bulk-fill" style="width:0%"></div></div>
       <div class="progress-stats" id="dup-bulk-stats">Starting… 0 / ${totalGroups} groups</div>
       <p class="hint dup-verify-note">
-        Duplicates are <em>found</em> with a fast approximate fingerprint (so indexing stays quick),
-        but before each file is deleted it's re-checked with a full exact byte-comparison. That extra
-        check can take a while, and it's what guarantees a look-alike that isn't truly identical is
-        never deleted by mistake.
+        Duplicates are found with a fast approximate fingerprint. Deleting moves the extras to a
+        restorable quarantine (not a permanent erase), so your explicit choice is honored right away
+        and anything can be recovered if needed.
       </p>
     </div>
   `;
   const fill = container.querySelector<HTMLElement>("#dup-bulk-fill");
   const stats = container.querySelector<HTMLElement>("#dup-bulk-stats");
   return {
-    update(done, quarantined, skipped, errors) {
+    update(done, quarantined, errors) {
       const pct = totalGroups > 0 ? Math.round((done / totalGroups) * 100) : 100;
       if (fill) fill.style.width = `${pct}%`;
       if (stats) {
         stats.textContent =
           `${done} / ${totalGroups} groups` +
           ` · ${quarantined} deleted` +
-          (skipped > 0 ? ` · ${skipped} skipped (not identical)` : "") +
-          (errors > 0 ? ` · ${errors} errors` : "");
+          (errors > 0 ? ` · ${errors} could not be moved` : "");
       }
     },
   };
@@ -169,7 +165,7 @@ function renderToolbar(container: HTMLElement, groups: DuplicateGroup[]): void {
       <button data-action="delete-all" class="danger">Delete all duplicates (keep selected in each)</button>
     </div>
     <p class="hint">Default keeps the shortest filename in each group (usually the original). Change the selection per group below before deleting if you want to keep a different copy.</p>
-    <p class="hint">Groups are found by a fast approximate fingerprint; deletion runs a full exact byte-check first, so it can be slower but never removes a look-alike that isn't truly identical.</p>
+    <p class="hint">Groups are found by a fast approximate fingerprint. Deleting moves the extras to a restorable quarantine, so it's honored immediately and anything can be recovered if needed.</p>
   `;
 }
 

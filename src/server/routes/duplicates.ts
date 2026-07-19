@@ -8,7 +8,6 @@ import {
 } from "../db.ts";
 import { config } from "../config.ts";
 import { safeMoveFile } from "../services/fsmove.ts";
-import { verifyIdentical } from "../services/hash.ts";
 import type { DuplicateGroup } from "../../shared/types.ts";
 
 export function makeDuplicatesListHandler(db: Database) {
@@ -69,34 +68,29 @@ export function makeDuplicatesResolveHandler(db: Database) {
       return Response.json({ quarantinedCount: 0, keptMediaId: keepMediaId });
     }
 
-    // content_hash is a sampled fingerprint, so group membership is only a
-    // strong *candidate* signal. Before quarantining anything, escalate to a
-    // full byte-level verification against the kept file — a file that isn't
-    // actually identical (a fingerprint collision) is left untouched and
-    // reported back, so a false positive can never delete a real photo.
     let quarantinedCount = 0;
-    const skippedNotIdentical: number[] = [];
+    // The user explicitly chose to delete these, and deletion is a soft move to
+    // a restorable quarantine (not a permanent unlink), so we honor the choice
+    // directly rather than gating on a full byte-for-byte re-verification. The
+    // quarantine itself is the safety net if a fingerprint-grouped item turns
+    // out not to be a true duplicate.
     const failed: number[] = [];
     for (const item of items) {
       if (item.id === keepMediaId) continue;
-      if (!(await verifyIdentical(keptItem.path, item.path))) {
-        skippedNotIdentical.push(item.id);
-        continue;
-      }
       try {
         const dest = join(config.quarantineDuplicatesDir, `${item.id}_${basename(item.path)}`);
         await safeMoveFile(item.path, dest);
         quarantineMedia(db, item.id, dest, `duplicate, kept media #${keepMediaId}`);
         quarantinedCount++;
       } catch {
-        // A move that failed verification left the original intact (safeMoveFile
-        // deletes only after a verified copy). Skip it, keep going, report it —
-        // one flaky copy shouldn't 500 the whole request or lose data.
+        // safeMoveFile deletes only after a verified copy, so a failed move
+        // leaves the original intact. Skip it, keep going, report it — one
+        // flaky copy shouldn't 500 the whole request or lose data.
         failed.push(item.id);
       }
     }
     insertDuplicateResolution(db, { contentHash, keptMediaId: keepMediaId, action: "deleted_extras" });
 
-    return Response.json({ quarantinedCount, keptMediaId: keepMediaId, skippedNotIdentical, failed });
+    return Response.json({ quarantinedCount, keptMediaId: keepMediaId, failed });
   };
 }
