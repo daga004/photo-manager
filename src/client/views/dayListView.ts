@@ -1,4 +1,4 @@
-import { getDays, getUndated } from "../api.ts";
+import { getDays, getNonCamera, getUndated } from "../api.ts";
 import { renderQuickJump } from "../components/quickJump.ts";
 import type { DayAggregate } from "../../shared/types.ts";
 
@@ -51,10 +51,20 @@ export async function renderDayList(container: HTMLElement, navigate: (path: str
     const order = (sortOrderSelect?.value === "asc" ? "asc" : "desc") as "asc" | "desc";
     const typeValue = typeSelect?.value;
     const type = (typeValue === "photo" || typeValue === "video" ? typeValue : "all") as "photo" | "video" | "all";
-    const [days, undated] = await Promise.all([getDays(sortBy, order, type), getUndated().catch(() => ({ count: 0 }))]);
+    const [days, undated, nonCamera] = await Promise.all([
+      getDays(sortBy, order, type),
+      getUndated().catch(() => ({ count: 0 })),
+      getNonCamera().catch(() => ({ count: 0 })),
+    ]);
     if (!tableContainer || !quickJumpContainer) return;
     renderTable(tableContainer, days, navigate);
     renderQuickJump(quickJumpContainer, days, (date) => navigate(`#/days/${date}`));
+    if (nonCamera.count > 0) {
+      const b = document.createElement("div");
+      b.className = "undated-banner";
+      b.innerHTML = `<a href="#/noncamera">Non-camera (${nonCamera.count}) &mdash; WhatsApp / downloads / screenshots &rarr;</a>`;
+      tableContainer.prepend(b);
+    }
     if (undated.count > 0) {
       const banner = document.createElement("div");
       banner.className = "undated-banner";

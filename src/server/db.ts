@@ -105,6 +105,7 @@ interface MediaRow {
   thumbnail_status: string;
   thumbnail_path: string | null;
   is_undated: number;
+  origin: string;
 }
 
 function rowToMediaRecord(row: MediaRow): MediaRecord {
@@ -135,6 +136,7 @@ function rowToMediaRecord(row: MediaRow): MediaRecord {
     thumbnailStatus: row.thumbnail_status as MediaRecord["thumbnailStatus"],
     thumbnailPath: row.thumbnail_path,
     isUndated: row.is_undated === 1,
+    origin: row.origin as MediaRecord["origin"],
   };
 }
 
@@ -162,7 +164,7 @@ export function getDayAggregates(
          SUM(CASE WHEN media_type = 'video' THEN 1 ELSE 0 END) AS videoCount,
          SUM(size_bytes) AS totalSizeBytes
        FROM media
-       WHERE status = 'active' AND is_undated = 0 ${typeFilter}
+       WHERE status = 'active' AND is_undated = 0 AND origin = 'camera' ${typeFilter}
        GROUP BY capture_date
        ORDER BY ${column} ${direction}`,
     )
@@ -178,8 +180,20 @@ export function getDayAggregates(
 
 export function getDayItems(database: Database, date: string): MediaRecord[] {
   const rows = database
-    .query("SELECT * FROM media WHERE status = 'active' AND is_undated = 0 AND capture_date = ? ORDER BY filename ASC")
+    .query("SELECT * FROM media WHERE status = 'active' AND is_undated = 0 AND origin = 'camera' AND capture_date = ? ORDER BY filename ASC")
     .all(date) as MediaRow[];
+  return rows.map(rowToMediaRecord);
+}
+
+export function countNonCamera(database: Database): number {
+  const row = database.query("SELECT COUNT(*) c FROM media WHERE status = 'active' AND origin = 'other' AND is_undated = 0").get() as { c: number };
+  return row.c;
+}
+
+export function getNonCameraItems(database: Database): MediaRecord[] {
+  const rows = database
+    .query("SELECT * FROM media WHERE status = 'active' AND origin = 'other' AND is_undated = 0 ORDER BY filename ASC")
+    .all() as MediaRow[];
   return rows.map(rowToMediaRecord);
 }
 
@@ -308,6 +322,7 @@ export interface InsertMediaInput {
   companionAaePath: string | null;
   sourcePath: string | null;
   importedAt: string | null;
+  origin: "camera" | "other";
 }
 
 export function insertMedia(database: Database, input: InsertMediaInput): number {
@@ -317,8 +332,8 @@ export function insertMedia(database: Database, input: InsertMediaInput): number
         path, relative_path, filename, extension, media_type,
         capture_date, capture_datetime, date_source, size_bytes,
         content_hash, content_hash_algo, width, height, duration_seconds,
-        companion_aae_path, source_path, imported_at, indexed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        companion_aae_path, source_path, imported_at, indexed_at, origin
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.path,
@@ -339,6 +354,7 @@ export function insertMedia(database: Database, input: InsertMediaInput): number
       input.sourcePath,
       input.importedAt,
       new Date().toISOString(),
+      input.origin,
     );
   return Number(result.lastInsertRowid);
 }

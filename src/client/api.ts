@@ -29,6 +29,10 @@ export function getUndated(): Promise<{ count: number; items: DayItem[] }> {
   return jsonFetch("/api/undated");
 }
 
+export function getNonCamera(): Promise<{ count: number; items: DayItem[] }> {
+  return jsonFetch("/api/non-camera");
+}
+
 export function getMedia(id: number): Promise<MediaRecord> {
   return jsonFetch(`/api/media/${id}`);
 }

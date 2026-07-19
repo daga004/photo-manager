@@ -6,6 +6,10 @@ export interface ExifMetadata {
   imageWidth?: number;
   imageHeight?: number;
   duration?: number;
+  /** Camera manufacturer from EXIF. Present on genuine captures (iPhone,
+   * DSLR, any camera); stripped on WhatsApp/downloaded/screenshot images —
+   * so its presence is the "camera capture vs junk" signal. */
+  make?: string;
 }
 
 interface ExiftoolJsonEntry {
@@ -15,6 +19,7 @@ interface ExiftoolJsonEntry {
   ImageWidth?: number;
   ImageHeight?: number;
   Duration?: number;
+  Make?: string;
 }
 
 /**
@@ -49,6 +54,7 @@ async function runExiftoolBatch(paths: readonly string[]): Promise<Map<string, E
       "-ImageWidth#",
       "-ImageHeight#",
       "-Duration#",
+      "-Make",
       "-@",
       "-",
     ],
@@ -79,7 +85,14 @@ async function runExiftoolBatch(paths: readonly string[]): Promise<Map<string, E
       imageWidth: entry.ImageWidth,
       imageHeight: entry.ImageHeight,
       duration: entry.Duration,
+      make: entry.Make,
     });
   }
   return map;
+}
+
+/** Genuine camera capture vs junk (WhatsApp/download/screenshot), by whether
+ * EXIF carries a camera Make. See ExifMetadata.make. */
+export function originFromMeta(meta: ExifMetadata | undefined): "camera" | "other" {
+  return meta?.make && meta.make.trim() !== "" ? "camera" : "other";
 }

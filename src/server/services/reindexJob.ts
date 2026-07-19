@@ -11,7 +11,7 @@ import {
 import { getLibraryRoot, getPhotosDir, getVideosDir } from "../config.ts";
 import { HASH_CONCURRENCY } from "../../shared/constants.ts";
 import { scanDirectory, type ScannedFile } from "./scanner.ts";
-import { batchExtractMetadata, type ExifMetadata } from "./exif.ts";
+import { batchExtractMetadata, originFromMeta, type ExifMetadata } from "./exif.ts";
 import { sampledFingerprint } from "./hash.ts";
 import { resolveCaptureDate } from "./dateFallback.ts";
 import { runWithConcurrency, yieldToEventLoop } from "./concurrency.ts";
@@ -120,5 +120,6 @@ function insertReindexRow(
     companionAaePath: file.companionAaePath ? relative(getLibraryRoot(),file.companionAaePath) : null,
     sourcePath: null,
     importedAt: null,
+    origin: originFromMeta(meta),
   });
 }

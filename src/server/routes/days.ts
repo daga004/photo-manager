@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { countUndated, getDayAggregates, getDayItems, getUndatedItems } from "../db.ts";
+import { countNonCamera, countUndated, getDayAggregates, getDayItems, getNonCameraItems, getUndatedItems } from "../db.ts";
 import type { DayItem, MediaRecord } from "../../shared/types.ts";
 
 function toDayItems(media: MediaRecord[]): DayItem[] {
@@ -41,5 +41,11 @@ export function makeDayDetailHandler(db: Database) {
 export function makeUndatedHandler(db: Database) {
   return (_req: Request): Response => {
     return Response.json({ count: countUndated(db), items: toDayItems(getUndatedItems(db)) });
+  };
+}
+
+export function makeNonCameraHandler(db: Database) {
+  return (_req: Request): Response => {
+    return Response.json({ count: countNonCamera(db), items: toDayItems(getNonCameraItems(db)) });
   };
 }

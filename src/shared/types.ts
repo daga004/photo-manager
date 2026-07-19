@@ -31,6 +31,7 @@ export interface MediaRecord {
   thumbnailStatus: ThumbnailStatus;
   thumbnailPath: string | null;
   isUndated: boolean;
+  origin: "camera" | "other";
 }
 
 export type JobType = "import" | "reindex" | "device_import";

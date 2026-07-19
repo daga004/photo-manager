@@ -4,7 +4,7 @@ import { stat } from "node:fs/promises";
 import { findActiveMediaByHash, findActiveMediaInDirectory, insertMedia } from "../db.ts";
 import { getLibraryRoot } from "../config.ts";
 import { baseNameNoExt, type MediaType } from "../../shared/extensions.ts";
-import type { ExifMetadata } from "./exif.ts";
+import { originFromMeta, type ExifMetadata } from "./exif.ts";
 import { resolveCaptureDate } from "./dateFallback.ts";
 import { computeDestinationRelativePath } from "./paths.ts";
 import { allocateFilename } from "./collision.ts";
@@ -102,6 +102,7 @@ export async function placeAndIndexFile(db: Database, params: PlaceAndIndexParam
     companionAaePath: companionRelativePath,
     sourcePath: params.sourcePathForAudit,
     importedAt: params.importedAt,
+    origin: originFromMeta(params.meta),
   });
 
   return { kind: "indexed", mediaId };
