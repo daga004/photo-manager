@@ -64,6 +64,7 @@ CREATE TABLE device_import_items (
   device_path TEXT NOT NULL,
   filename TEXT NOT NULL,
   expected_size_bytes INTEGER NOT NULL,
+  device_mtime_ms INTEGER,
   local_temp_path TEXT,
   phase TEXT NOT NULL DEFAULT 'pending' CHECK (phase IN
     ('pending','copied','copy_failed','indexed','ready_to_delete','deleted','delete_failed')),

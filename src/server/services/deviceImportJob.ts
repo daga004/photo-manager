@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { mkdir, rm, unlink } from "node:fs/promises";
+import { mkdir, rm, unlink, utimes } from "node:fs/promises";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -89,6 +89,14 @@ async function runCopyPhase(db: Database, jobId: number, udid: string): Promise<
       try {
         const st = await stat(localTempPath);
         if (st.size === item.expectedSizeBytes) {
+          // afcclient's `get` doesn't preserve the device's original mtime on
+          // the local copy it writes (confirmed empirically) — without this,
+          // any photo lacking embedded EXIF dates would fall back to "today"
+          // instead of its real capture date. See afc.ts's parseAfcLsDate.
+          if (item.deviceMtimeMs !== null) {
+            const mtime = new Date(item.deviceMtimeMs);
+            await utimes(localTempPath, mtime, mtime).catch(() => {});
+          }
           setDeviceImportItemPhase(db, item.id, "copied", { localTempPath });
         } else {
           setDeviceImportItemPhase(db, item.id, "copy_failed", {

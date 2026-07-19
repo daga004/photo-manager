@@ -475,6 +475,7 @@ interface DeviceImportItemRow {
   device_path: string;
   filename: string;
   expected_size_bytes: number;
+  device_mtime_ms: number | null;
   local_temp_path: string | null;
   phase: string;
   media_id: number | null;
@@ -489,6 +490,7 @@ function rowToDeviceImportItem(row: DeviceImportItemRow): DeviceImportItemRecord
     devicePath: row.device_path,
     filename: row.filename,
     expectedSizeBytes: row.expected_size_bytes,
+    deviceMtimeMs: row.device_mtime_ms,
     localTempPath: row.local_temp_path,
     phase: row.phase as DeviceImportItemRecord["phase"],
     mediaId: row.media_id,
@@ -502,16 +504,16 @@ function rowToDeviceImportItem(row: DeviceImportItemRow): DeviceImportItemRecord
 export function createDeviceImportItems(
   database: Database,
   jobId: number,
-  entries: Array<{ devicePath: string; filename: string; sizeBytes: number }>,
+  entries: Array<{ devicePath: string; filename: string; sizeBytes: number; deviceMtimeMs: number | null }>,
 ): void {
   const stmt = database.query(
-    `INSERT OR IGNORE INTO device_import_items (job_id, device_path, filename, expected_size_bytes, phase, updated_at)
-     VALUES (?, ?, ?, ?, 'pending', ?)`,
+    `INSERT OR IGNORE INTO device_import_items (job_id, device_path, filename, expected_size_bytes, device_mtime_ms, phase, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
   );
   const now = new Date().toISOString();
   database.transaction(() => {
     for (const entry of entries) {
-      stmt.run(jobId, entry.devicePath, entry.filename, entry.sizeBytes, now);
+      stmt.run(jobId, entry.devicePath, entry.filename, entry.sizeBytes, entry.deviceMtimeMs, now);
     }
   })();
 }

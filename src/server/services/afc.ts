@@ -52,6 +52,35 @@ export interface DevicePhotoEntry {
   devicePath: string; // e.g. DCIM/101APPLE/IMG_0855.JPG
   filename: string;
   sizeBytes: number;
+  /** Device-reported modification time, epoch ms — see parseAfcLsDate's doc
+   * comment for why this matters and must be applied after copy. */
+  deviceMtimeMs: number | null;
+}
+
+const MONTHS: Record<string, number> = {
+  Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+  Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+};
+
+/**
+ * Parses afcclient's `ls -l` date format, e.g. "28 Sep 2025 18:40:02".
+ * This is the device's real file modification time — capturing it matters
+ * because it's the last-resort fallback (after EXIF DateTimeOriginal/
+ * CreateDate) for organizing a photo by date. If we don't explicitly carry
+ * this through and apply it to the local copy (see deviceImportJob.ts's
+ * copy phase), the local file's mtime instead reflects "when this Mac
+ * downloaded it" — confirmed empirically: EXIF-less photos copied off an
+ * iPhone via `afcclient get` earlier this session all landed under today's
+ * date, not their actual capture date, because afcclient's `get` doesn't
+ * preserve the source mtime on the copy it writes.
+ */
+export function parseAfcLsDate(day: string, month: string, year: string, time: string): number | null {
+  const monthIndex = MONTHS[month];
+  if (monthIndex === undefined) return null;
+  const [h, m, s] = time.split(":").map(Number);
+  if (h === undefined || m === undefined || s === undefined) return null;
+  const date = new Date(Number(year), monthIndex, Number(day), h, m, s);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
 }
 
 /**
@@ -70,13 +99,17 @@ export async function listDevicePhotos(udid: string): Promise<DevicePhotoEntry[]
     const raw = await runAfcScript(udid, [`ls -l DCIM/${folder}`]);
     for (const line of splitAfcOutput(raw)) {
       if (!line.startsWith("-rw")) continue;
+      // e.g. "-rw-r--r--  1 mobile mobile  2976555 28 Sep 2025 18:40:02 IMG_0854.HEIC"
       const parts = line.split(/\s+/);
       const sizeBytes = Number(parts[4]);
       const filename = parts[parts.length - 1];
       if (!filename || Number.isNaN(sizeBytes) || shouldSkipFile(filename)) continue;
       const classification = classifyExtension(filename);
       if (classification !== "photo" && classification !== "video") continue;
-      entries.push({ devicePath: `DCIM/${folder}/${filename}`, filename, sizeBytes });
+      const [day, month, year, time] = [parts[5], parts[6], parts[7], parts[8]];
+      const deviceMtimeMs =
+        day && month && year && time ? parseAfcLsDate(day, month, year, time) : null;
+      entries.push({ devicePath: `DCIM/${folder}/${filename}`, filename, sizeBytes, deviceMtimeMs });
     }
   }
   return entries;

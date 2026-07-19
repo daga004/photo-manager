@@ -80,6 +80,7 @@ export interface DeviceImportItemRecord {
   devicePath: string;
   filename: string;
   expectedSizeBytes: number;
+  deviceMtimeMs: number | null;
   localTempPath: string | null;
   phase: DeviceImportPhase;
   mediaId: number | null;
