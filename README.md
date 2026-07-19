@@ -1,9 +1,9 @@
 # photo-manager
 
 A local photo/video library manager: indexes a media library (organized as
-`photos/YYYY/MM/` and `videos/YYYY/MM/`) into SQLite, imports new media from
-a folder or a connected iPhone (via `afcclient`/libimobiledevice), generates
-thumbnails, and helps find duplicates and cleanup candidates by day.
+`photos/YYYY/MM/DD/` and `videos/YYYY/MM/DD/`) into SQLite, imports new media
+from a folder or a connected iPhone (via `afcclient`/libimobiledevice),
+generates thumbnails, and helps find duplicates and cleanup candidates by day.
 
 ## Requirements
 
@@ -37,3 +37,15 @@ Environment variables (see `src/server/config.ts`):
   hold real file paths and personal photo metadata. Never remove this from `.gitignore`.
 - Deleting from an iPhone during import only ever happens after a file is copied
   **and** verified (byte size + successful indexing) — see `src/server/services/deviceImportJob.ts`.
+- Only one job (import/reindex/device import) can run at a time — starting a
+  second one while another is active returns an error rather than racing it.
+  Confirmed empirically: two overlapping device-import jobs against the same
+  phone can interleave their afcclient sessions in ways that make one job's
+  delete appear to silently no-op. See `db.ts`'s `findActiveJob`.
+- After a device import deletes photos from the iPhone, the Photos app may
+  keep showing blurry/low-res thumbnails for them for a while — this is a
+  stale entry in Photos' own local index/thumbnail cache, not a failed
+  deletion. The underlying file (a few MB) is confirmed gone immediately;
+  the leftover is an orphaned cached preview (KBs), and clears up once Photos
+  rescans (force-quit + reopen the app, or restart the phone, if it doesn't
+  clear on its own).

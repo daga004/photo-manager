@@ -3,7 +3,8 @@ import { startReindexJob } from "../services/jobRunner.ts";
 
 export function makeReindexHandler(db: Database) {
   return (_req: Request): Response => {
-    const jobId = startReindexJob(db);
-    return Response.json({ jobId }, { status: 202 });
+    const result = startReindexJob(db);
+    if (!result.ok) return Response.json({ error: result.error }, { status: 409 });
+    return Response.json({ jobId: result.jobId }, { status: 202 });
   };
 }

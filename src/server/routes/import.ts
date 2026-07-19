@@ -19,8 +19,9 @@ export function makeImportHandler(db: Database) {
       return Response.json({ error: `sourcePath does not exist or is not a directory: ${sourcePath}` }, { status: 400 });
     }
 
-    const jobId = startImportJob(db, sourcePath);
-    return Response.json({ jobId }, { status: 202 });
+    const result = startImportJob(db, sourcePath);
+    if (!result.ok) return Response.json({ error: result.error }, { status: 409 });
+    return Response.json({ jobId: result.jobId }, { status: 202 });
   };
 }
 
@@ -45,7 +46,8 @@ export function makeDeviceImportHandler(db: Database) {
       // Non-fatal: proceed with the UDID as the display name if info lookup fails.
     }
 
-    const jobId = startDeviceImportJob(db, udid, deviceName, deleteAfterVerify === true);
-    return Response.json({ jobId }, { status: 202 });
+    const result = startDeviceImportJob(db, udid, deviceName, deleteAfterVerify === true);
+    if (!result.ok) return Response.json({ error: result.error }, { status: 409 });
+    return Response.json({ jobId: result.jobId }, { status: 202 });
   };
 }

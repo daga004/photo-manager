@@ -31,7 +31,7 @@ export function makeJobListHandler(db: Database) {
 export function makeJobResumeHandler(db: Database) {
   return (req: Bun.BunRequest<"/api/jobs/:jobId/resume">): Response => {
     const result = resumeJob(db, Number(req.params.jobId));
-    if (!result.ok) return Response.json({ error: result.error }, { status: 400 });
+    if (!result.ok) return Response.json({ error: result.error }, { status: 409 });
     return Response.json({ resumed: true });
   };
 }

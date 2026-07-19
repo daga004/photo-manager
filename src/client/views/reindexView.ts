@@ -15,8 +15,15 @@ export async function renderReindex(container: HTMLElement): Promise<void> {
   if (!progressContainer || !startButton) return;
 
   startButton.addEventListener("click", async () => {
-    const { jobId } = await startReindex();
-    pollJob(jobId, (job: ImportJobRecord) => renderProgress(progressContainer, job));
+    startButton.disabled = true;
+    try {
+      const { jobId } = await startReindex();
+      pollJob(jobId, (job: ImportJobRecord) => renderProgress(progressContainer, job));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    } finally {
+      startButton.disabled = false;
+    }
   });
 
   const jobs = await listJobs(10);

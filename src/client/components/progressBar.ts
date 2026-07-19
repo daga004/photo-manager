@@ -47,7 +47,13 @@ document.addEventListener("click", (e) => {
   if (!button) return;
   const jobId = Number(button.dataset.jobId);
   const container = button.closest<HTMLElement>(".progress-status")?.parentElement ?? (button.parentElement as HTMLElement);
-  void resumeJob(jobId).then(() => pollJob(jobId, (job) => renderProgress(container, job)));
+  button.disabled = true;
+  resumeJob(jobId)
+    .then(() => pollJob(jobId, (job) => renderProgress(container, job)))
+    .catch((err) => {
+      alert(err instanceof Error ? err.message : String(err));
+      button.disabled = false;
+    });
 });
 
 function escapeHtml(s: string): string {

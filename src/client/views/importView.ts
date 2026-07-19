@@ -27,11 +27,14 @@ export async function renderImport(container: HTMLElement): Promise<void> {
   folderButton.addEventListener("click", async () => {
     const sourcePath = folderInput.value.trim();
     if (!sourcePath) return;
+    folderButton.disabled = true;
     try {
       const { jobId } = await startImport(sourcePath);
       watchJob(jobId, progressContainer);
     } catch (err) {
       alert(err instanceof Error ? err.message : String(err));
+    } finally {
+      folderButton.disabled = false;
     }
   });
 
@@ -69,13 +72,22 @@ function renderDeviceList(container: HTMLElement, devices: DeviceInfo[], progres
 
     if (deleteAfterVerify) {
       const ok = confirm(
-        "This will copy every photo/video off the iPhone, verify each one, then PERMANENTLY delete the originals from the phone (no 30-day undo). Continue?",
+        "This will copy every photo/video off the iPhone, verify each one, then PERMANENTLY delete the originals from the phone (no 30-day undo).\n\n" +
+          "Note: the Photos app may keep showing blurry/low-res thumbnails for deleted photos for a while afterward — this is just a stale index entry, not a failed deletion. The actual storage is freed immediately; force-quitting and reopening the Photos app (or restarting the phone) clears the stale thumbnails.\n\n" +
+          "Continue?",
       );
       if (!ok) return;
     }
 
-    const { jobId } = await startDeviceImport(udid, deleteAfterVerify);
-    watchJob(jobId, progressContainer);
+    button.disabled = true;
+    try {
+      const { jobId } = await startDeviceImport(udid, deleteAfterVerify);
+      watchJob(jobId, progressContainer);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    } finally {
+      button.disabled = false;
+    }
   });
 }
 

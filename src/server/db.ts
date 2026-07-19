@@ -377,6 +377,24 @@ export function getImportJob(database: Database, jobId: number): ImportJobRecord
   return row ? rowToImportJobRecord(row) : null;
 }
 
+/**
+ * Returns the currently active (running/pending) job, if any. Used to guard
+ * against starting two jobs concurrently — confirmed empirically that two
+ * overlapping device-import jobs against the same phone can race each
+ * other's afcclient sessions (one job's delete can interleave with another
+ * job's copy of the same still-present files), and the same
+ * read-existing-then-write collision-resolution pattern in import/reindex
+ * jobs is vulnerable to the same class of race if two jobs touch the same
+ * destination directory at once. Simplest safe fix for a personal tool:
+ * only one job runs at a time, full stop.
+ */
+export function findActiveJob(database: Database): ImportJobRecord | null {
+  const row = database
+    .query("SELECT * FROM import_jobs WHERE status IN ('running', 'pending') ORDER BY id DESC LIMIT 1")
+    .get() as ImportJobRow | null;
+  return row ? rowToImportJobRecord(row) : null;
+}
+
 export function listImportJobs(database: Database, limit = 50): ImportJobRecord[] {
   const rows = database
     .query("SELECT * FROM import_jobs ORDER BY id DESC LIMIT ?")
