@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 import { basename, join } from "node:path";
 import {
+  getImportJob,
   incrementImportJobCounters,
   logImportJobEvent,
   updateImportJob,
@@ -9,7 +10,7 @@ import { config } from "../config.ts";
 import { HASH_CONCURRENCY } from "../../shared/constants.ts";
 import { scanDirectory, type ScannedFile } from "./scanner.ts";
 import { batchExtractMetadata, type ExifMetadata } from "./exif.ts";
-import { hashFile } from "./hash.ts";
+import { sampledFingerprint } from "./hash.ts";
 import { safeMoveFile } from "./fsmove.ts";
 import { runWithConcurrency, yieldToEventLoop } from "./concurrency.ts";
 import { placeAndIndexFile } from "./placeAndIndex.ts";
@@ -29,7 +30,16 @@ import { placeAndIndexFile } from "./placeAndIndex.ts";
 export async function runImportJob(db: Database, jobId: number, sourcePath: string): Promise<void> {
   try {
     const scanned = await scanDirectory(sourcePath);
-    updateImportJob(db, jobId, { filesFound: scanned.length });
+    // filesFound is only set on the FIRST run: a resume re-scans the source
+    // folder, which naturally shrinks as already-imported files are moved
+    // out of it — overwriting filesFound on every resume would make it drift
+    // downward while filesProcessed keeps accumulating across resumes,
+    // eventually showing >100% progress. Confirmed this exact drift this
+    // session on a real resumed import.
+    const existingJob = getImportJob(db, jobId);
+    if (!existingJob || existingJob.filesFound === 0) {
+      updateImportJob(db, jobId, { filesFound: scanned.length });
+    }
 
     if (scanned.length === 0) {
       updateImportJob(db, jobId, { status: "completed", finishedAt: new Date().toISOString() });
@@ -40,7 +50,7 @@ export async function runImportJob(db: Database, jobId: number, sourcePath: stri
     // a large import) actually completes — not just at the end of the whole
     // batch, so the progress bar doesn't sit at 0% for the entire hash phase.
     const hashes = await runWithConcurrency(scanned, HASH_CONCURRENCY, async (f) => {
-      const hash = await hashFile(f.absolutePath);
+      const hash = await sampledFingerprint(f.absolutePath);
       incrementImportJobCounters(db, jobId, { filesProcessed: 1 });
       return hash;
     });

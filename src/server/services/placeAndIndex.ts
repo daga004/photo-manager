@@ -7,7 +7,8 @@ import { baseNameNoExt, type MediaType } from "../../shared/extensions.ts";
 import type { ExifMetadata } from "./exif.ts";
 import { resolveCaptureDate } from "./dateFallback.ts";
 import { computeDestinationRelativePath } from "./paths.ts";
-import { resolveCollision } from "./collision.ts";
+import { allocateFilename } from "./collision.ts";
+import { verifyIdentical } from "./hash.ts";
 import { safeMoveFile } from "./fsmove.ts";
 
 export type PlacementResult =
@@ -31,16 +32,22 @@ export interface PlaceAndIndexParams {
 
 /**
  * Shared placement pipeline used by both folder import and device (iPhone)
- * import: global-hash dedup check, capture-date resolution, destination
- * computation, collision handling, the safe move itself, and the `media`
+ * import: verified-dedup check, capture-date resolution, destination
+ * computation, filename allocation, the safe move itself, and the `media`
  * row insert. The two callers differ only in how they got a local file to
  * hand in here (already on disk vs freshly copied off a device) and in what
  * they do with their *source* on a duplicate (quarantine vs discard a scratch
  * temp copy) — that decision stays with the caller.
+ *
+ * `params.hash` is a sampled fingerprint (see hash.ts), so a fingerprint
+ * match is only a *candidate* duplicate — it's escalated to a full byte-level
+ * verifyIdentical before we ever treat the incoming file as a duplicate and
+ * decline to import it. Without that, a fingerprint collision would silently
+ * drop a genuinely-new photo.
  */
 export async function placeAndIndexFile(db: Database, params: PlaceAndIndexParams): Promise<PlacementResult> {
   const existingByHash = findActiveMediaByHash(db, params.hash);
-  if (existingByHash) {
+  if (existingByHash && (await verifyIdentical(params.localSourcePath, existingByHash.path))) {
     return { kind: "duplicate", matchedName: existingByHash.filename };
   }
 
@@ -53,14 +60,11 @@ export async function placeAndIndexFile(db: Database, params: PlaceAndIndexParam
 
   const provisionalRelativePath = computeDestinationRelativePath(params.mediaType, captureDate, params.filename);
   const destRelativeDir = dirname(provisionalRelativePath);
-  const existingEntries = findActiveMediaInDirectory(db, destRelativeDir);
-  const collision = resolveCollision(params.filename, params.hash, existingEntries);
-
-  if (collision.kind === "duplicate") {
-    return { kind: "duplicate", matchedName: collision.matchedName };
-  }
-
-  const finalFilename = collision.filename;
+  // Any same-name file still present in the destination dir is guaranteed to
+  // be *different* content — an identical one would have been caught and
+  // quarantined by the verified check above — so we just need a free name.
+  const existingNames = findActiveMediaInDirectory(db, destRelativeDir).map((e) => e.name);
+  const finalFilename = allocateFilename(params.filename, existingNames);
   const destRelativePath = join(destRelativeDir, finalFilename);
   const destAbsolutePath = join(config.libraryRoot, destRelativePath);
 

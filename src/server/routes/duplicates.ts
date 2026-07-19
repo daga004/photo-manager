@@ -8,6 +8,7 @@ import {
 } from "../db.ts";
 import { config } from "../config.ts";
 import { safeMoveFile } from "../services/fsmove.ts";
+import { verifyIdentical } from "../services/hash.ts";
 import type { DuplicateGroup } from "../../shared/types.ts";
 
 export function makeDuplicatesListHandler(db: Database) {
@@ -58,7 +59,8 @@ export function makeDuplicatesResolveHandler(db: Database) {
     }
 
     const items = findActiveMediaByHashAll(db, contentHash);
-    if (!items.some((m) => m.id === keepMediaId)) {
+    const keptItem = items.find((m) => m.id === keepMediaId);
+    if (!keptItem) {
       return Response.json({ error: "keepMediaId is not an active member of this duplicate group" }, { status: 400 });
     }
 
@@ -67,9 +69,19 @@ export function makeDuplicatesResolveHandler(db: Database) {
       return Response.json({ quarantinedCount: 0, keptMediaId: keepMediaId });
     }
 
+    // content_hash is a sampled fingerprint, so group membership is only a
+    // strong *candidate* signal. Before quarantining anything, escalate to a
+    // full byte-level verification against the kept file — a file that isn't
+    // actually identical (a fingerprint collision) is left untouched and
+    // reported back, so a false positive can never delete a real photo.
     let quarantinedCount = 0;
+    const skippedNotIdentical: number[] = [];
     for (const item of items) {
       if (item.id === keepMediaId) continue;
+      if (!(await verifyIdentical(keptItem.path, item.path))) {
+        skippedNotIdentical.push(item.id);
+        continue;
+      }
       const dest = join(config.quarantineDuplicatesDir, `${item.id}_${basename(item.path)}`);
       await safeMoveFile(item.path, dest);
       quarantineMedia(db, item.id, dest, `duplicate, kept media #${keepMediaId}`);
@@ -77,6 +89,6 @@ export function makeDuplicatesResolveHandler(db: Database) {
     }
     insertDuplicateResolution(db, { contentHash, keptMediaId: keepMediaId, action: "deleted_extras" });
 
-    return Response.json({ quarantinedCount, keptMediaId: keepMediaId });
+    return Response.json({ quarantinedCount, keptMediaId: keepMediaId, skippedNotIdentical });
   };
 }

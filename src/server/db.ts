@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { config } from "./config.ts";
+import { HASH_ALGO } from "../shared/constants.ts";
 import type { DeviceImportItemRecord, ImportJobEventRecord, ImportJobRecord, MediaRecord } from "../shared/types.ts";
 
 let db: Database | null = null;
@@ -290,7 +291,7 @@ export function insertMedia(database: Database, input: InsertMediaInput): number
         capture_date, capture_datetime, date_source, size_bytes,
         content_hash, content_hash_algo, width, height, duration_seconds,
         companion_aae_path, source_path, imported_at, indexed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sha256', ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.path,
@@ -303,6 +304,7 @@ export function insertMedia(database: Database, input: InsertMediaInput): number
       input.dateSource,
       input.sizeBytes,
       input.contentHash,
+      HASH_ALGO,
       input.width,
       input.height,
       input.durationSeconds,

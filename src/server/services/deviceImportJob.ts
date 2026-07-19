@@ -15,7 +15,7 @@ import { HASH_CONCURRENCY } from "../../shared/constants.ts";
 import { classifyExtension, getExtension, type MediaType } from "../../shared/extensions.ts";
 import type { DeviceImportItemRecord } from "../../shared/types.ts";
 import { listDevicePhotos, copyFilesFromDevice, deleteFilesFromDevice } from "./afc.ts";
-import { hashFile } from "./hash.ts";
+import { sampledFingerprint } from "./hash.ts";
 import { batchExtractMetadata } from "./exif.ts";
 import { runWithConcurrency, yieldToEventLoop } from "./concurrency.ts";
 import { placeAndIndexFile } from "./placeAndIndex.ts";
@@ -123,7 +123,7 @@ async function runIndexPhase(db: Database, jobId: number): Promise<void> {
   const localPaths = copied.map((item) => item.localTempPath).filter((p): p is string => p !== null);
   const metaMap = await batchExtractMetadata(localPaths);
   const hashes = await runWithConcurrency(copied, HASH_CONCURRENCY, (item) =>
-    item.localTempPath ? hashFile(item.localTempPath) : Promise.resolve(""),
+    item.localTempPath ? sampledFingerprint(item.localTempPath) : Promise.resolve(""),
   );
 
   for (let i = 0; i < copied.length; i++) {

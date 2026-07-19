@@ -12,7 +12,7 @@ import { config } from "../config.ts";
 import { HASH_CONCURRENCY } from "../../shared/constants.ts";
 import { scanDirectory, type ScannedFile } from "./scanner.ts";
 import { batchExtractMetadata, type ExifMetadata } from "./exif.ts";
-import { hashFile } from "./hash.ts";
+import { sampledFingerprint } from "./hash.ts";
 import { resolveCaptureDate } from "./dateFallback.ts";
 import { runWithConcurrency, yieldToEventLoop } from "./concurrency.ts";
 
@@ -48,13 +48,11 @@ export async function runReindexJob(db: Database, jobId: number): Promise<void> 
     }
 
     if (pending.length > 0) {
-      // filesProcessed is bumped here, per file, as hashing (the long pole
-      // for a full-library reindex) actually completes — not just at the
-      // end of the whole batch. Otherwise the progress bar sits at 0% for
-      // the entire hash phase and only jumps at the very end, which is
-      // technically correct but reads as "stuck" to anyone watching it.
+      // Sampled fingerprint (~128KB/file) instead of a full-content read —
+      // this is the whole point of the speedup. filesProcessed is bumped per
+      // file as each fingerprint completes so the progress bar tracks it live.
       const hashes = await runWithConcurrency(pending, HASH_CONCURRENCY, async (f) => {
-        const hash = await hashFile(f.absolutePath);
+        const hash = await sampledFingerprint(f.absolutePath);
         incrementImportJobCounters(db, jobId, { filesProcessed: 1 });
         return hash;
       });

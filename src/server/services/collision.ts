@@ -1,49 +1,24 @@
-export interface ExistingEntry {
-  name: string;
-  hash: string;
-}
-
-export type CollisionResult =
-  | { kind: "duplicate"; matchedName: string }
-  | { kind: "place"; filename: string };
-
 /**
- * Decides what to do when placing `candidateFilename` into a destination
- * directory that may already contain a file of the same name:
- *  - if an existing entry has the same name AND the same content hash, this
- *    is a true duplicate — caller should quarantine the source, not copy it.
- *  - if an existing entry has the same name but a DIFFERENT hash, disambiguate
- *    by inserting a `__dupN` suffix before the extension, retrying until a
- *    free (or same-hash) name is found.
- *  - otherwise the original name is free to use as-is.
+ * Allocates a filename that is free within a destination directory. Given the
+ * candidate name and the set of names already present, returns the candidate
+ * unchanged if free, otherwise inserts a `__dupN` suffix before the extension
+ * (incrementing N) until an unused name is found.
+ *
+ * This is purely about filename uniqueness — it does NOT decide duplicate-ness.
+ * By the time placement reaches here, true content-duplicates have already been
+ * caught and quarantined by placeAndIndex's verified global fingerprint check,
+ * so any same-name clash at this point is guaranteed to be *different* content
+ * that simply needs a distinct name.
  */
-export function resolveCollision(
-  candidateFilename: string,
-  candidateHash: string,
-  existingEntries: ExistingEntry[],
-): CollisionResult {
-  const existingByName = new Map(existingEntries.map((e) => [e.name, e.hash]));
-
-  const existingHash = existingByName.get(candidateFilename);
-  if (existingHash === undefined) {
-    return { kind: "place", filename: candidateFilename };
-  }
-  if (existingHash === candidateHash) {
-    return { kind: "duplicate", matchedName: candidateFilename };
-  }
+export function allocateFilename(candidateFilename: string, existingNames: Iterable<string>): string {
+  const taken = new Set(existingNames);
+  if (!taken.has(candidateFilename)) return candidateFilename;
 
   const dotIdx = candidateFilename.lastIndexOf(".");
   const base = dotIdx === -1 ? candidateFilename : candidateFilename.slice(0, dotIdx);
   const ext = dotIdx === -1 ? "" : candidateFilename.slice(dotIdx);
 
   let n = 2;
-  let candidate = `${base}__dup${n}${ext}`;
-  while (existingByName.has(candidate)) {
-    if (existingByName.get(candidate) === candidateHash) {
-      return { kind: "duplicate", matchedName: candidate };
-    }
-    n++;
-    candidate = `${base}__dup${n}${ext}`;
-  }
-  return { kind: "place", filename: candidate };
+  while (taken.has(`${base}__dup${n}${ext}`)) n++;
+  return `${base}__dup${n}${ext}`;
 }
