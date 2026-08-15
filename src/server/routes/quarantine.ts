@@ -63,9 +63,13 @@ export function makeQuarantinePurgeHandler(db: Database) {
       //    first so foreign keys (enabled) don't block the delete.
       let removedRows = 0;
       db.transaction(() => {
-        db.query(
-          "UPDATE device_import_items SET media_id = NULL WHERE media_id IN (SELECT id FROM media WHERE status = 'quarantined')",
-        ).run();
+        const quarantined = "(SELECT id FROM media WHERE status = 'quarantined')";
+        // Clear both foreign keys that reference media(id) before the delete:
+        //  - device_import_items.media_id is nullable → null it out;
+        //  - duplicate_resolutions.kept_media_id is NOT NULL → delete the row
+        //    (it's an audit record for media that's being purged anyway).
+        db.query(`UPDATE device_import_items SET media_id = NULL WHERE media_id IN ${quarantined}`).run();
+        db.query(`DELETE FROM duplicate_resolutions WHERE kept_media_id IN ${quarantined}`).run();
         removedRows = db.query("DELETE FROM media WHERE status = 'quarantined'").run().changes;
       })();
 
