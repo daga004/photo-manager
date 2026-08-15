@@ -165,6 +165,7 @@ export interface DuplicateGroup {
     id: number;
     path: string;
     filename: string;
+    mediaType: MediaType;
     captureDate: string;
     importedAt: string | null;
     thumbnailUrl: string;

@@ -1,18 +1,18 @@
 :root {
-  color-scheme: light dark;
+  /* Dark by default — the palette is applied regardless of the OS light/dark
+     setting (the app has no theme toggle; it's a dark-first photo tool). */
+  color-scheme: dark;
 
-  /* Core palette (cool-neutral). --bg is a hair off-white so white surfaces
-     lift off it; --surface is the elevated card/panel background. */
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --surface-hover: #f2f4f7;
-  --fg: #191c20;
-  --muted: #667085;
-  --border: #e5e8ec;
-  --accent: #2563eb;
-  --accent-fg: #ffffff;
-  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
-  --danger: #dc2626;
+  --bg: #101216;
+  --surface: #1a1d23;
+  --surface-hover: #22262e;
+  --fg: #e7e9ec;
+  --muted: #98a1af;
+  --border: #2b2f38;
+  --accent: #5b9dff;
+  --accent-fg: #0b1220;
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --danger: #f87171;
 
   /* Radius scale */
   --radius-sm: 6px;
@@ -23,29 +23,11 @@
   --space: 0.5rem;
 
   /* Soft shadows for elevated surfaces */
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
-  --shadow: 0 1px 3px rgba(16, 24, 40, 0.05), 0 6px 16px -6px rgba(16, 24, 40, 0.12);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 28px -8px rgba(0, 0, 0, 0.55);
 
   /* Shared transition timing */
   --ease: 160ms cubic-bezier(0.2, 0, 0, 1);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #101216;
-    --surface: #1a1d23;
-    --surface-hover: #22262e;
-    --fg: #e7e9ec;
-    --muted: #98a1af;
-    --border: #2b2f38;
-    --accent: #5b9dff;
-    --accent-fg: #0b1220;
-    --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
-    --danger: #f87171;
-
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 28px -8px rgba(0, 0, 0, 0.55);
-  }
 }
 
 * {
@@ -411,11 +393,80 @@ button.primary:hover {
 
 .viewer-media img,
 .viewer-media video {
-  max-width: 88vw;
-  max-height: 82vh;
+  /* Fill the whole screen (contained), edge to edge — immersive by default. */
+  max-width: 100vw;
+  max-height: 100vh;
   object-fit: contain;
-  border-radius: var(--radius-sm);
-  box-shadow: 0 20px 60px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* Immersive by default: chrome (name, actions, key hints) is hidden until the
+   user presses Space, which adds .show-info to the overlay. */
+.viewer-hint {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.78rem;
+  pointer-events: none;
+}
+
+.media-viewer-overlay.show-info .viewer-hint {
+  display: none;
+}
+
+.viewer-info {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1.5rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0));
+  color: #eee;
+}
+
+.media-viewer-overlay.show-info .viewer-info {
+  display: block;
+}
+
+.viewer-info-name {
+  font-size: 1rem;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.viewer-info-pos {
+  color: #bbb;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.6rem;
+}
+
+.viewer-info-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.viewer-info-keys {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  color: #bbb;
+  font-size: 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.viewer-info-keys kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  padding: 0.05em 0.4em;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Upscaled thumbnail placeholder: soften the blockiness until the sharp
@@ -683,6 +734,27 @@ button.primary:hover {
 .purge-actions {
   display: flex;
   gap: 0.6rem;
+}
+
+/* FTUE keyboard hint at the top of a day. */
+.keyboard-hint {
+  margin: 0.25rem 0 1rem;
+}
+
+.keyboard-hint kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78em;
+  padding: 0.08em 0.4em;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--fg);
+}
+
+/* Duplicate thumbnails are now openable in the viewer. */
+img.dup-thumb {
+  cursor: pointer;
 }
 
 .dup-quarantine-controls {

@@ -1,6 +1,7 @@
 import { getDuplicates, openQuarantineFolder, resolveDuplicate } from "../api.ts";
 import { formatBytes } from "./dayListView.ts";
-import type { DuplicateGroup } from "../../shared/types.ts";
+import { openMediaViewer } from "./mediaViewerView.ts";
+import type { DayItem, DuplicateGroup } from "../../shared/types.ts";
 
 /**
  * The file to keep by default in a duplicate group: the one with the SHORTEST
@@ -29,6 +30,10 @@ export async function renderDuplicates(container: HTMLElement): Promise<void> {
   const quarantineControls = container.querySelector<HTMLElement>(".dup-quarantine-controls");
   if (!toolbar || !listContainer) return;
 
+  // Latest loaded groups, so the viewer's cross-group (Up/Down) navigation and the
+  // image openers can resolve a group by hash without re-fetching.
+  let currentGroups: DuplicateGroup[] = [];
+
   // Opens the deleted-duplicates quarantine folder in the host's native file
   // manager (server-side `open`/`xdg-open`), so files can be previewed with the
   // OS's own tools rather than needing an in-app viewer for quarantined items.
@@ -48,9 +53,82 @@ export async function renderDuplicates(container: HTMLElement): Promise<void> {
   async function load(): Promise<void> {
     const groups = await getDuplicates(false);
     if (!toolbar || !listContainer) return;
+    currentGroups = groups;
     renderToolbar(toolbar, groups);
     renderGroups(listContainer, groups);
   }
+
+  // ---- Reused fullscreen viewer over duplicate groups -----------------------
+  // Left/Right move within a group; Up/Down move between groups; Delete removes.
+  function groupToItems(g: DuplicateGroup): DayItem[] {
+    return g.items.map((it) => ({
+      id: it.id,
+      filename: it.filename,
+      mediaType: it.mediaType,
+      extension: "",
+      sizeBytes: 0,
+      width: null,
+      height: null,
+      durationSeconds: null,
+      thumbnailUrl: it.thumbnailUrl,
+    }));
+  }
+
+  async function adjacentGroup(currentKey: string, direction: "prev" | "next") {
+    const i = currentGroups.findIndex((g) => g.contentHash === currentKey);
+    if (i === -1) return null;
+    const ti = direction === "prev" ? i - 1 : i + 1;
+    const target = currentGroups[ti];
+    if (!target) return null;
+    return {
+      context: { key: target.contentHash, label: `Group ${ti + 1} / ${currentGroups.length}` },
+      items: groupToItems(target),
+    };
+  }
+
+  function openGroupViewer(hash: string, itemIndex: number, fullscreen: boolean): void {
+    const gi = currentGroups.findIndex((g) => g.contentHash === hash);
+    if (gi === -1) return;
+    openMediaViewer(groupToItems(currentGroups[gi]!), itemIndex, {
+      fullscreen,
+      context: { key: hash, label: `Group ${gi + 1} / ${currentGroups.length}` },
+      collectionNoun: "group",
+      onRequestAdjacent: adjacentGroup,
+      // Items may have been deleted from within the viewer — refresh on close.
+      onClose: () => void load(),
+    });
+  }
+
+  const resolveImg = (e: Event): { hash: string; index: number } | null => {
+    const img = (e.target as HTMLElement).closest<HTMLImageElement>("img.dup-thumb");
+    if (!img) return null;
+    const hash = img.closest<HTMLElement>(".dup-group")?.dataset.hash;
+    const index = Number(img.dataset.itemIndex);
+    if (!hash || Number.isNaN(index)) return null;
+    return { hash, index };
+  };
+
+  // Single click opens; double click opens fullscreen. Same disambiguation as the
+  // day grid: a click waits briefly in case it's the first half of a double-click.
+  let pendingImgClick: ReturnType<typeof setTimeout> | null = null;
+  listContainer.addEventListener("click", (e) => {
+    const r = resolveImg(e);
+    if (!r) return;
+    if (pendingImgClick) return;
+    pendingImgClick = setTimeout(() => {
+      pendingImgClick = null;
+      openGroupViewer(r.hash, r.index, false);
+    }, 250);
+  });
+  listContainer.addEventListener("dblclick", (e) => {
+    const r = resolveImg(e);
+    if (!r) return;
+    if (pendingImgClick) {
+      clearTimeout(pendingImgClick);
+      pendingImgClick = null;
+    }
+    openGroupViewer(r.hash, r.index, true);
+  });
 
   // "Delete all" resolves every visible group at once, keeping whichever file
   // is currently selected in each (defaulting to the shortest name).
@@ -207,8 +285,8 @@ function renderGroups(container: HTMLElement, groups: DuplicateGroup[]): void {
         <div class="dup-items">
           ${g.items
             .map(
-              (item) => `<div class="dup-item">
-                <img src="${item.thumbnailUrl}" alt="${escapeAttr(item.filename)}" decoding="async" loading="lazy" />
+              (item, itemIndex) => `<div class="dup-item">
+                <img class="dup-thumb" data-item-index="${itemIndex}" src="${item.thumbnailUrl}" alt="${escapeAttr(item.filename)}" title="Click to open · double-click for fullscreen" decoding="async" loading="lazy" />
                 <label><input type="radio" name="keep-${g.contentHash}" value="${item.id}" ${item.id === keepId ? "checked" : ""} /> Keep</label>
                 <div class="dup-item-meta">${escapeAttr(item.filename)}<br />${escapeAttr(item.path)}</div>
               </div>`,

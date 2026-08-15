@@ -5,29 +5,64 @@ const thumbUrl = (id: number) => `/api/media/${id}/thumbnail`;
 const previewUrl = (id: number) => `/api/media/${id}/preview`;
 const originalUrl = (id: number) => `/api/media/${id}/full`;
 
-export function openMediaViewer(items: DayItem[], startIndex: number): void {
+/** Identifies the "collection" currently open in the viewer — a day (key = date)
+ * or a duplicate group (key = content hash). `label` is shown in the footer. */
+export interface ViewerContext {
+  key: string;
+  label?: string;
+}
+
+export interface ViewerOptions {
+  /** Request true OS fullscreen for the overlay (needs a user gesture, e.g. a double-click). */
+  fullscreen?: boolean;
+  /** The collection these items belong to — enables Up/Down navigation between collections. */
+  context?: ViewerContext;
+  /** Loads the previous/next collection's items (Up = "prev", Down = "next").
+   * Returns null when there's no adjacent collection. */
+  onRequestAdjacent?: (
+    currentKey: string,
+    direction: "prev" | "next",
+  ) => Promise<{ context: ViewerContext; items: DayItem[] } | null>;
+  /** Called when the viewer closes, with the collection key it ended on — lets the
+   * caller re-sync (e.g. navigate to the last-viewed day). */
+  onClose?: (finalKey: string | undefined) => void;
+  /** Noun for the collection in the on-screen key hints: "day" (day view) or
+   * "group" (duplicates). Defaults to "collection". */
+  collectionNoun?: string;
+}
+
+/**
+ * Reusable fullscreen media viewer, shared by the day and duplicates views.
+ * Keyboard:
+ *   ← / →   previous / next item within the current collection
+ *   ↑ / ↓   previous / next collection (day or duplicate group), when provided
+ *   Delete  soft-delete the current file
+ *   Esc     close
+ */
+export function openMediaViewer(items: DayItem[], startIndex: number, opts: ViewerOptions = {}): void {
+  let list = items;
   let index = startIndex;
+  let currentContext = opts.context;
+  let infoVisible = false; // immersive by default; Space reveals name + instructions
+  const noun = opts.collectionNoun ?? "collection";
+
   const overlay = document.createElement("div");
   overlay.className = "media-viewer-overlay";
   document.body.appendChild(overlay);
 
+  if (opts.fullscreen) {
+    // Real fullscreen fills the whole display; if blocked, the overlay already
+    // covers the viewport, so it degrades gracefully.
+    overlay.requestFullscreen?.().catch(() => {});
+  }
+
   function render(): void {
-    const item = items[index];
+    const item = list[index];
     if (!item) return;
 
     if (item.mediaType === "video") {
-      // Video streams from the server with Range support; the browser handles
-      // progressive playback, so no preview indirection is needed.
-      renderShell(
-        `<video src="${originalUrl(item.id)}" controls autoplay></video>`,
-        item,
-      );
+      renderShell(`<video src="${originalUrl(item.id)}" controls autoplay></video>`, item);
     } else {
-      // Progressive photo load, nomacs-style: show the already-cached thumbnail
-      // instantly (upscaled + slightly blurred) as a placeholder, then swap in
-      // the screen-resolution preview the moment it decodes. The preview is a
-      // browser-safe JPEG (HEIC/RAW originals wouldn't render) and a fraction
-      // of the original's size over the network.
       renderShell(
         `<img class="viewer-img viewer-img-loading" decoding="async" src="${thumbUrl(item.id)}" alt="${escapeAttr(item.filename)}" />`,
         item,
@@ -36,8 +71,7 @@ export function openMediaViewer(items: DayItem[], startIndex: number): void {
       if (imgEl) {
         const full = new Image();
         full.onload = () => {
-          // Only swap if the user hasn't navigated away in the meantime.
-          if (items[index]?.id === item.id) {
+          if (list[index]?.id === item.id) {
             imgEl.src = full.src;
             imgEl.classList.remove("viewer-img-loading");
           }
@@ -50,23 +84,34 @@ export function openMediaViewer(items: DayItem[], startIndex: number): void {
   }
 
   function renderShell(mediaHtml: string, item: DayItem): void {
+    const label = currentContext?.label ? `${escapeAttr(currentContext.label)} &middot; ` : "";
     overlay.innerHTML = `
       <button class="viewer-close" data-action="close" aria-label="Close">&times;</button>
       <button class="viewer-prev" data-action="prev" ${index === 0 ? "disabled" : ""} aria-label="Previous">&larr;</button>
       <div class="viewer-media">${mediaHtml}</div>
-      <button class="viewer-next" data-action="next" ${index === items.length - 1 ? "disabled" : ""} aria-label="Next">&rarr;</button>
-      <div class="viewer-footer">
-        <span class="viewer-filename">${escapeAttr(item.filename)} (${index + 1} / ${items.length})</span>
-        <button class="viewer-action" data-action="open-original">Open original</button>
-        <button class="viewer-action viewer-delete" data-action="delete">Delete</button>
+      <button class="viewer-next" data-action="next" ${index === list.length - 1 ? "disabled" : ""} aria-label="Next">&rarr;</button>
+      <div class="viewer-hint">Press <kbd>Space</kbd> for info</div>
+      <div class="viewer-info">
+        <div class="viewer-info-name">${label}${escapeAttr(item.filename)}</div>
+        <div class="viewer-info-pos">${index + 1} / ${list.length}</div>
+        <div class="viewer-info-actions">
+          <button class="viewer-action" data-action="open-original">Open original</button>
+          <button class="viewer-action viewer-delete" data-action="delete">Delete</button>
+        </div>
+        <ul class="viewer-info-keys">
+          <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> browse within this ${escapeAttr(noun)}</li>
+          <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> previous / next ${escapeAttr(noun)}</li>
+          <li><kbd>Delete</kbd> delete &middot; <kbd>Enter</kbd> open in file manager &middot; <kbd>Esc</kbd> close</li>
+        </ul>
       </div>
     `;
+    overlay.classList.toggle("show-info", infoVisible);
   }
 
   // Warm the browser cache for the adjacent previews so next/prev feels instant.
   function prefetchNeighbors(): void {
     for (const n of [index - 1, index + 1]) {
-      const neighbor = items[n];
+      const neighbor = list[n];
       if (neighbor && neighbor.mediaType === "photo") {
         const img = new Image();
         img.src = previewUrl(neighbor.id);
@@ -74,28 +119,9 @@ export function openMediaViewer(items: DayItem[], startIndex: number): void {
     }
   }
 
-  function close(): void {
-    overlay.remove();
-    document.removeEventListener("keydown", onKeyDown);
-  }
-
-  function go(delta: number): void {
-    const next = index + delta;
-    if (next < 0 || next >= items.length) return;
-    index = next;
-    render();
-  }
-
-  function onKeyDown(e: KeyboardEvent): void {
-    if (e.key === "Escape") close();
-    else if (e.key === "ArrowLeft") go(-1);
-    else if (e.key === "ArrowRight") go(1);
-  }
-
-  // Opens the original in the OS's default app (Preview/QuickTime/…). The file is
-  // already local, so nothing is downloaded — the server just hands the OS the path.
+  // Opens the original in the OS's default app; the file is local, so nothing downloads.
   async function openOriginal(): Promise<void> {
-    const item = items[index];
+    const item = list[index];
     if (!item) return;
     try {
       await openMediaOriginal(item.id);
@@ -104,23 +130,74 @@ export function openMediaViewer(items: DayItem[], startIndex: number): void {
     }
   }
 
-  // Soft-deletes the current item (restorable quarantine), removes it from the
-  // viewer, and advances — or closes if it was the last one.
+  // Soft-deletes the current item (restorable quarantine), removes it, and advances.
   async function deleteCurrent(): Promise<void> {
-    const item = items[index];
+    const item = list[index];
     if (!item) return;
     if (!confirm(`Delete "${item.filename}"?\n\nIt moves to a restorable quarantine (not erased).`)) return;
     try {
       await deleteMedia(item.id);
-      items.splice(index, 1); // also updates the caller's array; the grid refreshes on next load
-      if (items.length === 0) {
+      list.splice(index, 1); // mutates the caller's array too; the view refreshes on next load
+      if (list.length === 0) {
         close();
         return;
       }
-      if (index >= items.length) index = items.length - 1;
+      if (index >= list.length) index = list.length - 1;
       render();
     } catch (err) {
       alert(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  // Loads the previous/next collection's items into the viewer in place.
+  async function changeCollection(direction: "prev" | "next"): Promise<void> {
+    if (!opts.onRequestAdjacent || !currentContext) return;
+    try {
+      const res = await opts.onRequestAdjacent(currentContext.key, direction);
+      if (!res || res.items.length === 0) return;
+      list = res.items;
+      currentContext = res.context;
+      index = 0;
+      render();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  function close(): void {
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    overlay.remove();
+    document.removeEventListener("keydown", onKeyDown);
+    opts.onClose?.(currentContext?.key);
+  }
+
+  function go(delta: number): void {
+    const next = index + delta;
+    if (next < 0 || next >= list.length) return;
+    index = next;
+    render();
+  }
+
+  function onKeyDown(e: KeyboardEvent): void {
+    if (e.key === "Escape") close();
+    else if (e.key === "ArrowLeft") go(-1);
+    else if (e.key === "ArrowRight") go(1);
+    else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      void changeCollection("prev");
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      void changeCollection("next");
+    } else if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      void deleteCurrent();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      void openOriginal();
+    } else if (e.key === " " || e.code === "Space") {
+      e.preventDefault(); // don't scroll the page behind
+      infoVisible = !infoVisible;
+      overlay.classList.toggle("show-info", infoVisible);
     }
   }
 

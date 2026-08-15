@@ -26,6 +26,7 @@ export function makeDuplicatesListHandler(db: Database) {
           id: m.id,
           path: m.path,
           filename: m.filename,
+          mediaType: m.mediaType,
           captureDate: m.captureDate,
           importedAt: m.importedAt,
           thumbnailUrl: `/api/media/${m.id}/thumbnail`,

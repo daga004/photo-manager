@@ -2,7 +2,10 @@ import type { DayItem } from "../../shared/types.ts";
 
 export interface ThumbnailGridOptions {
   items: DayItem[];
-  onItemClick: (item: DayItem, index: number) => void;
+  /** Single-click activation (used by the non-camera/undated views). */
+  onItemClick?: (item: DayItem, index: number) => void;
+  /** Double-click activation (the day view uses this to open the fullscreen viewer). */
+  onItemDoubleClick?: (item: DayItem, index: number) => void;
 }
 
 /** Lazy-loaded, virtualized-enough thumbnail grid: sets `src` only when a
@@ -55,13 +58,46 @@ export function renderThumbnailGrid(container: HTMLElement, options: ThumbnailGr
   });
   container.appendChild(fragment);
 
-  container.addEventListener("click", (e) => {
+  const resolve = (e: Event): { item: DayItem; index: number } | null => {
     const cell = (e.target as HTMLElement).closest<HTMLElement>(".thumb-cell");
-    if (!cell) return;
+    if (!cell) return null;
     const index = Number(cell.dataset.index);
     const item = options.items[index];
-    if (item) options.onItemClick(item, index);
-  });
+    return item ? { item, index } : null;
+  };
+
+  // When both handlers exist, a click must wait briefly to see if it's really the
+  // first half of a double-click — otherwise single-click (open) would always fire
+  // before double-click (fullscreen). A dblclick cancels the pending single-click.
+  const bothProvided = Boolean(options.onItemClick && options.onItemDoubleClick);
+  let pendingClick: ReturnType<typeof setTimeout> | null = null;
+
+  if (options.onItemClick || options.onItemDoubleClick) {
+    container.addEventListener("click", (e) => {
+      const r = resolve(e);
+      if (!r) return;
+      if (bothProvided) {
+        if (pendingClick) return;
+        pendingClick = setTimeout(() => {
+          pendingClick = null;
+          options.onItemClick?.(r.item, r.index);
+        }, 250);
+      } else {
+        options.onItemClick?.(r.item, r.index);
+      }
+    });
+  }
+  if (options.onItemDoubleClick) {
+    container.addEventListener("dblclick", (e) => {
+      const r = resolve(e);
+      if (!r) return;
+      if (pendingClick) {
+        clearTimeout(pendingClick);
+        pendingClick = null;
+      }
+      options.onItemDoubleClick!(r.item, r.index);
+    });
+  }
 }
 
 function formatDuration(seconds: number): string {
