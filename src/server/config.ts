@@ -15,6 +15,7 @@ export const config = {
   thumbnailsDir: join(dataDir, "thumbnails"),
   quarantineDir: join(dataDir, "quarantine"),
   quarantineDuplicatesDir: join(dataDir, "quarantine", "duplicates"),
+  quarantineDeletedDir: join(dataDir, "quarantine", "deleted"),
   quarantineImportDuplicatesDir: join(dataDir, "quarantine", "import-duplicates"),
   port: Number(process.env.PHOTO_MANAGER_PORT ?? 3000),
 } as const;

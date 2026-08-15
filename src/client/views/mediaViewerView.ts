@@ -1,3 +1,4 @@
+import { deleteMedia, openMediaOriginal } from "../api.ts";
 import type { DayItem } from "../../shared/types.ts";
 
 const thumbUrl = (id: number) => `/api/media/${id}/thumbnail`;
@@ -56,7 +57,8 @@ export function openMediaViewer(items: DayItem[], startIndex: number): void {
       <button class="viewer-next" data-action="next" ${index === items.length - 1 ? "disabled" : ""} aria-label="Next">&rarr;</button>
       <div class="viewer-footer">
         <span class="viewer-filename">${escapeAttr(item.filename)} (${index + 1} / ${items.length})</span>
-        ${item.mediaType === "photo" ? `<a class="viewer-original" href="${originalUrl(item.id)}" target="_blank" rel="noopener">View original</a>` : ""}
+        <button class="viewer-action" data-action="open-original">Open original</button>
+        <button class="viewer-action viewer-delete" data-action="delete">Delete</button>
       </div>
     `;
   }
@@ -90,11 +92,45 @@ export function openMediaViewer(items: DayItem[], startIndex: number): void {
     else if (e.key === "ArrowRight") go(1);
   }
 
+  // Opens the original in the OS's default app (Preview/QuickTime/…). The file is
+  // already local, so nothing is downloaded — the server just hands the OS the path.
+  async function openOriginal(): Promise<void> {
+    const item = items[index];
+    if (!item) return;
+    try {
+      await openMediaOriginal(item.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  // Soft-deletes the current item (restorable quarantine), removes it from the
+  // viewer, and advances — or closes if it was the last one.
+  async function deleteCurrent(): Promise<void> {
+    const item = items[index];
+    if (!item) return;
+    if (!confirm(`Delete "${item.filename}"?\n\nIt moves to a restorable quarantine (not erased).`)) return;
+    try {
+      await deleteMedia(item.id);
+      items.splice(index, 1); // also updates the caller's array; the grid refreshes on next load
+      if (items.length === 0) {
+        close();
+        return;
+      }
+      if (index >= items.length) index = items.length - 1;
+      render();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   overlay.addEventListener("click", (e) => {
     const action = (e.target as HTMLElement).dataset.action;
     if (action === "close") close();
     else if (action === "prev") go(-1);
     else if (action === "next") go(1);
+    else if (action === "open-original") void openOriginal();
+    else if (action === "delete") void deleteCurrent();
   });
 
   document.addEventListener("keydown", onKeyDown);

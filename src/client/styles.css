@@ -284,6 +284,36 @@ button:hover {
   text-decoration: none;
 }
 
+/* Action buttons in the viewer footer (Open original / Delete), styled for the
+   dark overlay rather than the app's light chrome. */
+.viewer-action {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.viewer-action:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.viewer-delete {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.viewer-delete:hover {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
+/* "Open folder" button in the day-detail header, pushed to the right. */
+#open-day-folder {
+  margin-left: auto;
+}
+
 .viewer-close,
 .viewer-prev,
 .viewer-next {

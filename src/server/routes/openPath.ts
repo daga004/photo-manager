@@ -17,9 +17,14 @@ const TARGETS: Record<string, string> = {
   "quarantine-import-duplicates": config.quarantineImportDuplicatesDir,
 };
 
-async function openInFileManager(path: string): Promise<void> {
-  // `open` (macOS) / `xdg-open` (Linux) both return immediately after handing off
-  // to the OS; we don't block on the window staying open.
+/**
+ * Opens a path with the host OS's default handler: a FOLDER opens in the file
+ * manager, a FILE opens in its default app (Preview/QuickTime/etc.). Used for
+ * both "open quarantine folder" and the viewer's "open original" — the file is
+ * already local, so this never downloads/streams it, it just hands the path to
+ * the OS. Both `open`/`xdg-open` return immediately after handing off.
+ */
+export async function nativeOpen(path: string): Promise<void> {
   const cmd = process.platform === "darwin" ? ["open", path] : ["xdg-open", path];
   const proc = Bun.spawn(cmd, { stdout: "ignore", stderr: "pipe" });
   const code = await proc.exited;
@@ -45,7 +50,7 @@ export function makeOpenPathHandler() {
       );
     }
     try {
-      await openInFileManager(TARGETS[target] as string);
+      await nativeOpen(TARGETS[target] as string);
       return Response.json({ opened: true });
     } catch (err) {
       return Response.json(

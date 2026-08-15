@@ -6,8 +6,14 @@ import {
   makeSettingsGetHandler,
   makeSettingsUpdateHandler,
 } from "./routes/settings.ts";
-import { makeDaysListHandler, makeDayDetailHandler, makeUndatedHandler, makeNonCameraHandler } from "./routes/days.ts";
-import { makeMediaDetailHandler, makeMediaFullHandler, makeMediaRestoreHandler } from "./routes/media.ts";
+import { makeDaysListHandler, makeDayDetailHandler, makeDayOpenHandler, makeUndatedHandler, makeNonCameraHandler } from "./routes/days.ts";
+import {
+  makeMediaDeleteHandler,
+  makeMediaDetailHandler,
+  makeMediaFullHandler,
+  makeMediaOpenHandler,
+  makeMediaRestoreHandler,
+} from "./routes/media.ts";
 import { makePreviewHandler, makeThumbnailHandler } from "./routes/thumbnails.ts";
 import { makeImportHandler, makeDeviceImportHandler } from "./routes/import.ts";
 import { makeReindexHandler } from "./routes/reindex.ts";
@@ -45,6 +51,7 @@ const server = Bun.serve({
 
     "/api/days": makeDaysListHandler(db),
     "/api/days/:date": makeDayDetailHandler(db),
+    "/api/days/:date/open": { POST: makeDayOpenHandler(db) },
     "/api/undated": makeUndatedHandler(db),
     "/api/non-camera": makeNonCameraHandler(db),
 
@@ -52,6 +59,8 @@ const server = Bun.serve({
     "/api/media/:id/full": makeMediaFullHandler(db),
     "/api/media/:id/thumbnail": makeThumbnailHandler(db),
     "/api/media/:id/preview": makePreviewHandler(db),
+    "/api/media/:id/open": { POST: makeMediaOpenHandler(db) },
+    "/api/media/:id/delete": { POST: makeMediaDeleteHandler(db) },
     "/api/media/:id/restore": { POST: makeMediaRestoreHandler(db) },
 
     "/api/devices": makeDevicesListHandler(),

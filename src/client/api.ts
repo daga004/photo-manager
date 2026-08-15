@@ -41,6 +41,22 @@ export function restoreMedia(id: number): Promise<{ restored: true }> {
   return jsonFetch(`/api/media/${id}/restore`, { method: "POST" });
 }
 
+// Opens the original file in the host OS's default app (no download — the file
+// is already local).
+export function openMediaOriginal(id: number): Promise<{ opened: true }> {
+  return jsonFetch(`/api/media/${id}/open`, { method: "POST" });
+}
+
+// Soft-deletes a media file (moves it to the restorable "deleted" quarantine).
+export function deleteMedia(id: number): Promise<{ deleted: true }> {
+  return jsonFetch(`/api/media/${id}/delete`, { method: "POST" });
+}
+
+// Opens the on-disk folder(s) for a day in the host's file manager.
+export function openDayFolder(date: string): Promise<{ opened: number }> {
+  return jsonFetch(`/api/days/${encodeURIComponent(date)}/open`, { method: "POST" });
+}
+
 export function listDevices(): Promise<DeviceInfo[]> {
   return jsonFetch("/api/devices");
 }

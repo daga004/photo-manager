@@ -1,5 +1,7 @@
 import { Database } from "bun:sqlite";
+import { dirname } from "node:path";
 import { countNonCamera, countUndated, getDayAggregates, getDayItems, getNonCameraItems, getUndatedItems } from "../db.ts";
+import { nativeOpen } from "./openPath.ts";
 import type { DayItem, MediaRecord } from "../../shared/types.ts";
 
 function toDayItems(media: MediaRecord[]): DayItem[] {
@@ -35,6 +37,32 @@ export function makeDayDetailHandler(db: Database) {
   return (req: Bun.BunRequest<"/api/days/:date">): Response => {
     const date = req.params.date;
     return Response.json({ date, items: toDayItems(getDayItems(db, date)) });
+  };
+}
+
+/** Opens the on-disk folder(s) for a day in the host's file manager, so the user
+ * can probe/organize/delete with native tools. A day's camera files can live in
+ * up to two trees (photos/YYYY/MM/DD and videos/YYYY/MM/DD); we open each distinct
+ * directory. Filters mirror the day-detail view (dated camera media only). */
+export function makeDayOpenHandler(db: Database) {
+  return async (req: Bun.BunRequest<"/api/days/:date/open">): Promise<Response> => {
+    const date = req.params.date;
+    const rows = db
+      .query(
+        "SELECT DISTINCT path FROM media WHERE capture_date = ? AND status = 'active' AND origin = 'camera' AND is_undated = 0",
+      )
+      .all(date) as Array<{ path: string }>;
+    const dirs = [...new Set(rows.map((r) => dirname(r.path)))];
+    if (dirs.length === 0) return Response.json({ error: "no files on disk for this day" }, { status: 404 });
+    try {
+      for (const dir of dirs) await nativeOpen(dir);
+      return Response.json({ opened: dirs.length });
+    } catch (err) {
+      return Response.json(
+        { error: `could not open folder(s): ${err instanceof Error ? err.message : String(err)}` },
+        { status: 500 },
+      );
+    }
   };
 }
 
