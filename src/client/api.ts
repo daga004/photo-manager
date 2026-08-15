@@ -51,6 +51,19 @@ export function pickFolder(): Promise<{ path: string | null }> {
   return jsonFetch("/api/pick-folder", { method: "POST" });
 }
 
+// Opens a quarantine folder in the host's native file manager (Finder/xdg-open)
+// so the user can preview quarantined files with the OS's own tools. `target` is
+// an allow-listed key, not a path.
+export function openQuarantineFolder(
+  target: "quarantine" | "quarantine-duplicates" | "quarantine-import-duplicates",
+): Promise<{ opened: true }> {
+  return jsonFetch("/api/open-path", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target }),
+  });
+}
+
 export function startImport(sourcePath: string): Promise<{ jobId: number }> {
   return jsonFetch("/api/import", {
     method: "POST",

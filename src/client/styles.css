@@ -387,6 +387,14 @@ button:hover {
   margin: 0.15rem 0 0;
 }
 
+.dup-quarantine-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0.25rem 0 1rem;
+}
+
 .dup-bulk-progress {
   margin-bottom: 0.5rem;
 }

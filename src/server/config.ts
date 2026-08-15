@@ -13,6 +13,7 @@ export const config = {
   dataDir,
   dbPath: join(dataDir, "index.sqlite"),
   thumbnailsDir: join(dataDir, "thumbnails"),
+  quarantineDir: join(dataDir, "quarantine"),
   quarantineDuplicatesDir: join(dataDir, "quarantine", "duplicates"),
   quarantineImportDuplicatesDir: join(dataDir, "quarantine", "import-duplicates"),
   port: Number(process.env.PHOTO_MANAGER_PORT ?? 3000),

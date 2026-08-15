@@ -1,4 +1,4 @@
-import { getDuplicates, resolveDuplicate } from "../api.ts";
+import { getDuplicates, openQuarantineFolder, resolveDuplicate } from "../api.ts";
 import { formatBytes } from "./dayListView.ts";
 import type { DuplicateGroup } from "../../shared/types.ts";
 
@@ -18,10 +18,32 @@ function defaultKeepId(group: DuplicateGroup): number {
 }
 
 export async function renderDuplicates(container: HTMLElement): Promise<void> {
-  container.innerHTML = `<h2>Duplicates</h2><div id="dup-toolbar"></div><div id="dup-list">Loading…</div>`;
+  container.innerHTML = `<h2>Duplicates</h2>
+    <div class="dup-quarantine-controls">
+      <button data-action="open-quarantine" data-target="quarantine-duplicates">Open quarantine folder</button>
+      <span class="hint">Deleted duplicates are moved here (not erased). Opens it in Finder so you can preview files with Quick Look and restore or purge as you like.</span>
+    </div>
+    <div id="dup-toolbar"></div><div id="dup-list">Loading…</div>`;
   const toolbar = container.querySelector<HTMLElement>("#dup-toolbar");
   const listContainer = container.querySelector<HTMLElement>("#dup-list");
+  const quarantineControls = container.querySelector<HTMLElement>(".dup-quarantine-controls");
   if (!toolbar || !listContainer) return;
+
+  // Opens the deleted-duplicates quarantine folder in the host's native file
+  // manager (server-side `open`/`xdg-open`), so files can be previewed with the
+  // OS's own tools rather than needing an in-app viewer for quarantined items.
+  quarantineControls?.addEventListener("click", async (e) => {
+    const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-action=open-quarantine]");
+    if (!button) return;
+    button.disabled = true;
+    try {
+      await openQuarantineFolder("quarantine-duplicates");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   async function load(): Promise<void> {
     const groups = await getDuplicates(false);

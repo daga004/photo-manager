@@ -21,6 +21,7 @@ import {
 import { makeDuplicatesListHandler, makeDuplicatesResolveHandler } from "./routes/duplicates.ts";
 import { makeDevicesListHandler } from "./routes/devices.ts";
 import { makePickFolderHandler } from "./routes/pickFolder.ts";
+import { makeOpenPathHandler } from "./routes/openPath.ts";
 
 const db = getDb();
 // Only the real, long-lived server process should ever reconcile stuck jobs —
@@ -54,6 +55,7 @@ const server = Bun.serve({
     "/api/devices": makeDevicesListHandler(),
 
     "/api/pick-folder": { POST: makePickFolderHandler() },
+    "/api/open-path": { POST: makeOpenPathHandler() },
 
     "/api/import": { POST: makeImportHandler(db) },
     "/api/import/device": { POST: makeDeviceImportHandler(db) },
