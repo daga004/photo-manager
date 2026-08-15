@@ -391,6 +391,16 @@ button.primary:hover {
   backdrop-filter: blur(2px);
 }
 
+/* Panzoom container: fills the screen and clips the panned/zoomed image. */
+.viewer-media {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
 .viewer-media img,
 .viewer-media video {
   /* Fill the whole screen (contained), edge to edge — immersive by default. */

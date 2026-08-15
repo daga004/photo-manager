@@ -1,3 +1,4 @@
+import Panzoom, { type PanzoomObject } from "@panzoom/panzoom";
 import { deleteMedia, openMediaOriginal } from "../api.ts";
 import type { DayItem } from "../../shared/types.ts";
 
@@ -45,10 +46,27 @@ export function openMediaViewer(items: DayItem[], startIndex: number, opts: View
   let currentContext = opts.context;
   let infoVisible = false; // immersive by default; Space reveals name + instructions
   const noun = opts.collectionNoun ?? "collection";
+  let pz: PanzoomObject | null = null; // pan/zoom on the current photo (recreated per image)
 
   const overlay = document.createElement("div");
   overlay.className = "media-viewer-overlay";
   document.body.appendChild(overlay);
+
+  // Trackpad gestures: pinch (ctrl+wheel) zooms toward the cursor; two-finger
+  // scroll pans when zoomed in, or zooms when the image is at fit. Mouse wheel
+  // zooms too. Bound to the media container each render (the element is rebuilt).
+  function onWheel(e: WheelEvent): void {
+    if (!pz) return;
+    e.preventDefault();
+    if (e.ctrlKey) {
+      pz.zoomWithWheel(e);
+    } else if (pz.getScale() > 1) {
+      const p = pz.getPan();
+      pz.pan(p.x - e.deltaX, p.y - e.deltaY, { animate: false });
+    } else {
+      pz.zoomWithWheel(e);
+    }
+  }
 
   if (opts.fullscreen) {
     // Real fullscreen fills the whole display; if blocked, the overlay already
@@ -59,6 +77,10 @@ export function openMediaViewer(items: DayItem[], startIndex: number, opts: View
   function render(): void {
     const item = list[index];
     if (!item) return;
+
+    // Tear down the previous image's pan/zoom so each image starts at fit.
+    pz?.destroy();
+    pz = null;
 
     if (item.mediaType === "video") {
       renderShell(`<video src="${originalUrl(item.id)}" controls autoplay></video>`, item);
@@ -77,6 +99,12 @@ export function openMediaViewer(items: DayItem[], startIndex: number, opts: View
           }
         };
         full.src = previewUrl(item.id);
+
+        // Pan/zoom on the photo. panOnlyWhenZoomed keeps a plain click/drag at fit
+        // from moving the image (so background-click-to-close still works, and
+        // arrow/keyboard nav is unaffected). Wheel handling is custom (see onWheel).
+        pz = Panzoom(imgEl, { maxScale: 8, minScale: 1, panOnlyWhenZoomed: true, cursor: "grab" });
+        overlay.querySelector<HTMLElement>(".viewer-media")?.addEventListener("wheel", onWheel, { passive: false });
       }
     }
 
@@ -102,6 +130,7 @@ export function openMediaViewer(items: DayItem[], startIndex: number, opts: View
           <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> browse within this ${escapeAttr(noun)}</li>
           <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> previous / next ${escapeAttr(noun)}</li>
           <li><kbd>Delete</kbd> delete &middot; <kbd>Enter</kbd> open in file manager &middot; <kbd>Esc</kbd> close</li>
+          <li>Pinch or scroll to zoom &middot; drag to pan</li>
         </ul>
       </div>
     `;
@@ -166,6 +195,8 @@ export function openMediaViewer(items: DayItem[], startIndex: number, opts: View
 
   function close(): void {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    pz?.destroy();
+    pz = null;
     overlay.remove();
     document.removeEventListener("keydown", onKeyDown);
     opts.onClose?.(currentContext?.key);
