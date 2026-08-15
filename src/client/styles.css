@@ -1,21 +1,50 @@
 :root {
   color-scheme: light dark;
-  --bg: #ffffff;
-  --fg: #1a1a1a;
-  --muted: #666;
-  --border: #ddd;
+
+  /* Core palette (cool-neutral). --bg is a hair off-white so white surfaces
+     lift off it; --surface is the elevated card/panel background. */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-hover: #f2f4f7;
+  --fg: #191c20;
+  --muted: #667085;
+  --border: #e5e8ec;
   --accent: #2563eb;
+  --accent-fg: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
   --danger: #dc2626;
+
+  /* Radius scale */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+
+  /* Spacing unit */
+  --space: 0.5rem;
+
+  /* Soft shadows for elevated surfaces */
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow: 0 1px 3px rgba(16, 24, 40, 0.05), 0 6px 16px -6px rgba(16, 24, 40, 0.12);
+
+  /* Shared transition timing */
+  --ease: 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #16181d;
-    --fg: #e6e6e6;
-    --muted: #999;
-    --border: #333;
+    --bg: #101216;
+    --surface: #1a1d23;
+    --surface-hover: #22262e;
+    --fg: #e7e9ec;
+    --muted: #98a1af;
+    --border: #2b2f38;
     --accent: #5b9dff;
+    --accent-fg: #0b1220;
+    --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
     --danger: #f87171;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 28px -8px rgba(0, 0, 0, 0.55);
   }
 }
 
@@ -34,9 +63,38 @@ html {
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   background: var(--bg);
   color: var(--fg);
   overscroll-behavior-x: none;
+}
+
+h1 {
+  font-size: 1.6rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 1.25rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* Clear, consistent keyboard focus ring across all interactive chrome. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .folder-input-row {
@@ -51,9 +109,15 @@ body {
 
 nav {
   display: flex;
-  gap: 1.5rem;
-  padding: 1rem 1.5rem;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.75rem 1.5rem;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
   border-bottom: 1px solid var(--border);
+  backdrop-filter: saturate(1.2) blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 nav.hidden {
@@ -61,16 +125,27 @@ nav.hidden {
 }
 
 /* Global background-activity indicator, pinned to the right of the nav. Visible
-   on every tab while an import/reindex runs, so background work is never hidden. */
+   on every tab while an import/reindex runs, so background work is never hidden.
+   Styled as a live status pill. */
 .activity-indicator {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 999px;
+  background: var(--accent-soft);
   color: var(--accent);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 500;
   text-decoration: none;
   font-variant-numeric: tabular-nums;
+  transition: background var(--ease);
+}
+
+.activity-indicator:hover {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .activity-indicator.hidden {
@@ -105,7 +180,7 @@ nav.hidden {
 
 .onboarding {
   max-width: 640px;
-  margin: 2rem auto;
+  margin: 2.5rem auto;
 }
 
 .onboarding h1 {
@@ -122,15 +197,30 @@ nav a {
   color: var(--muted);
   text-decoration: none;
   font-weight: 500;
+  font-size: 0.92rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--ease), background var(--ease);
 }
 
-nav a.active,
 nav a:hover {
+  color: var(--fg);
+  background: var(--surface-hover);
+}
+
+nav a.active {
   color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* The activity indicator is an <a> too — keep its pill look on hover. */
+nav a.activity-indicator:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 main {
-  padding: 1.5rem;
+  padding: 2rem 1.5rem;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -139,55 +229,99 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   flex-wrap: wrap;
   gap: 1rem;
 }
 
 .sort-controls select {
   margin: 0 0.25rem;
-}
-
-input[type="text"] {
-  padding: 0.4rem 0.6rem;
+  padding: 0.4rem 0.5rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--fg);
-  min-width: 260px;
-}
-
-button {
-  padding: 0.4rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   color: var(--fg);
   cursor: pointer;
 }
 
-button:hover {
+input[type="text"] {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--fg);
+  min-width: 260px;
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+
+input[type="text"]:focus {
+  outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+button {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--ease), background var(--ease), box-shadow var(--ease), transform var(--ease);
+}
+
+button:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: var(--surface-hover);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+/* Primary / accent button variant (additive — safe when unused). */
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+button.primary:hover {
+  background: color-mix(in srgb, var(--accent) 88%, black);
+  border-color: color-mix(in srgb, var(--accent) 88%, black);
 }
 
 .day-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .day-table th,
 .day-table td {
   text-align: left;
-  padding: 0.5rem 0.75rem;
+  padding: 0.6rem 0.8rem;
   border-bottom: 1px solid var(--border);
+}
+
+.day-table th {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
 }
 
 .day-table tbody tr {
   cursor: pointer;
+  transition: background var(--ease);
 }
 
 .day-table tbody tr:hover {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  background: var(--accent-soft);
 }
 
 .empty-state,
@@ -204,27 +338,39 @@ button:hover {
   display: flex;
   align-items: baseline;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .day-detail-header a {
   color: var(--muted);
   text-decoration: none;
+  transition: color var(--ease);
+}
+
+.day-detail-header a:hover {
+  color: var(--accent);
 }
 
 .thumbnail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.5rem;
+  gap: 0.6rem;
 }
 
 .thumb-cell {
   position: relative;
   aspect-ratio: 1;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--fg) 5%, transparent);
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--ease), box-shadow var(--ease);
+}
+
+.thumb-cell:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
 }
 
 .thumb-cell img {
@@ -232,17 +378,24 @@ button:hover {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 240ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.thumb-cell:hover img {
+  transform: scale(1.05);
 }
 
 .video-badge {
   position: absolute;
-  bottom: 4px;
-  right: 4px;
-  background: rgba(0, 0, 0, 0.65);
+  bottom: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.6);
   color: #fff;
   font-size: 0.7rem;
-  padding: 0.1rem 0.35rem;
-  border-radius: 3px;
+  font-weight: 500;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
 }
 
 .media-viewer-overlay {
@@ -253,6 +406,7 @@ button:hover {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  backdrop-filter: blur(2px);
 }
 
 .viewer-media img,
@@ -260,6 +414,8 @@ button:hover {
   max-width: 88vw;
   max-height: 82vh;
   object-fit: contain;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 20px 60px -12px rgba(0, 0, 0, 0.7);
 }
 
 /* Upscaled thumbnail placeholder: soften the blockiness until the sharp
@@ -277,36 +433,42 @@ button:hover {
   align-items: center;
   color: #ccc;
   font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .viewer-original {
-  color: var(--accent);
+  color: color-mix(in srgb, var(--accent) 70%, white);
   text-decoration: none;
 }
 
 /* Action buttons in the viewer footer (Open original / Delete), styled for the
    dark overlay rather than the app's light chrome. */
 .viewer-action {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 4px;
-  padding: 0.3rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.8rem;
   font-size: 0.85rem;
+  font-weight: 500;
   cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background var(--ease), border-color var(--ease);
 }
 
 .viewer-action:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .viewer-delete {
-  border-color: var(--danger);
-  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 70%, transparent);
+  color: color-mix(in srgb, var(--danger) 85%, white);
 }
 
 .viewer-delete:hover {
   background: color-mix(in srgb, var(--danger) 22%, transparent);
+  border-color: var(--danger);
 }
 
 /* "Open folder" button in the day-detail header, pushed to the right. */
@@ -318,11 +480,25 @@ button:hover {
 .viewer-prev,
 .viewer-next {
   position: absolute;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.06);
   color: #fff;
   border: none;
-  font-size: 2rem;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 1.7rem;
+  line-height: 1;
   cursor: pointer;
+  transition: background var(--ease), transform var(--ease);
+}
+
+.viewer-close:hover,
+.viewer-prev:hover,
+.viewer-next:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .viewer-close {
@@ -342,6 +518,7 @@ button:hover {
 .viewer-next:disabled {
   opacity: 0.2;
   cursor: default;
+  background: transparent;
 }
 
 .viewer-filename {
@@ -364,32 +541,36 @@ button:hover {
 
 .device-card {
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  padding: 1rem 1.15rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   align-items: flex-start;
   max-width: 480px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .progress-bar {
   height: 8px;
   background: color-mix(in srgb, var(--fg) 10%, transparent);
-  border-radius: 4px;
+  border-radius: 999px;
   overflow: hidden;
   margin: 0.5rem 0;
 }
 
 .progress-bar-fill {
   height: 100%;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 75%, white));
+  border-radius: inherit;
   transition: width 0.3s ease;
 }
 
 .progress-stats {
   color: var(--muted);
   font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .progress-substep {
@@ -497,9 +678,10 @@ button:hover {
 
 code {
   background: color-mix(in srgb, var(--fg) 8%, transparent);
-  padding: 0.05rem 0.3rem;
-  border-radius: 3px;
-  font-size: 0.9em;
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.88em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .progress-error {
@@ -510,9 +692,11 @@ code {
 
 .dup-group {
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 1rem;
+  border-radius: var(--radius);
+  padding: 1.15rem;
   margin-bottom: 1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .dup-group-header {
@@ -536,13 +720,15 @@ code {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: 4px;
-  margin-bottom: 0.25rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.3rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .dup-item-meta {
   color: var(--muted);
   word-break: break-all;
+  font-variant-numeric: tabular-nums;
 }
 
 .dup-group-actions button:first-child {
@@ -552,8 +738,13 @@ code {
 }
 
 button.danger {
-  border-color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
   color: var(--danger);
+}
+
+button.danger:hover {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
 }
 
 .dup-toolbar-row {
@@ -567,9 +758,9 @@ button.danger {
 
 .undated-banner {
   margin-bottom: 0.75rem;
-  padding: 0.6rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 0.7rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 .undated-banner a { color: var(--accent); text-decoration: none; font-weight: 500; }
