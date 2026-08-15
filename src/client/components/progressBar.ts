@@ -30,22 +30,7 @@ function renderLiveProgress(progress: NonNullable<ImportJobRecord["progress"]>):
   const transfers = progress.activeTransfers.map(renderActiveTransfer).join("");
   const transfersBlock = transfers ? `<div class="active-transfers">${transfers}</div>` : "";
 
-  // "Just imported" preview: only meaningful once a file has fully landed and been
-  // indexed (lastCompletedMediaId set). We never preview an in-flight file — it
-  // isn't indexed yet, so it has no thumbnail. The <img> hides itself on load
-  // error via the delegated capture-phase listener below (broken/absent thumb).
-  const justImported =
-    progress.lastCompletedMediaId != null
-      ? `<div class="just-imported">
-          <img class="just-imported-thumb" src="/api/media/${progress.lastCompletedMediaId}/thumbnail" alt="${escapeHtml(progress.lastCompletedFilename ?? "just imported")}" />
-          <div class="just-imported-caption">
-            <span class="just-imported-label">Just imported</span>
-            ${progress.lastCompletedFilename ? `<span class="just-imported-name">${escapeHtml(progress.lastCompletedFilename)}</span>` : ""}
-          </div>
-        </div>`
-      : "";
-
-  return `<div class="live-progress">${rateLine}${transfersBlock}${justImported}</div>`;
+  return `<div class="live-progress">${rateLine}${transfersBlock}</div>`;
 }
 
 // One active transfer row: filename, size, and a per-file mini progress bar driven
@@ -137,21 +122,6 @@ document.addEventListener("click", (e) => {
       button.disabled = false;
     });
 });
-
-// The "just imported" thumbnail is best-effort: the media may still be generating
-// its thumbnail, or the render can lag a delete. Rather than an inline onerror
-// attribute on every rebuilt <img>, one delegated listener hides any that fail.
-// `error` events don't bubble, so we listen in the CAPTURE phase to catch them.
-document.addEventListener(
-  "error",
-  (e) => {
-    const target = e.target as HTMLElement | null;
-    if (target instanceof HTMLImageElement && target.classList.contains("just-imported-thumb")) {
-      target.style.display = "none";
-    }
-  },
-  true,
-);
 
 function escapeHtml(s: string): string {
   const div = document.createElement("div");

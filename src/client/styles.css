@@ -378,44 +378,6 @@ button:hover {
   margin: 0.15rem 0 0;
 }
 
-/* "Just imported" thumbnail preview of the most recently landed file. */
-.just-imported {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-top: 0.7rem;
-}
-
-.just-imported-thumb {
-  width: 44px;
-  height: 44px;
-  object-fit: cover;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.just-imported-caption {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.just-imported-label {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--muted);
-}
-
-.just-imported-name {
-  font-size: 0.85rem;
-  color: var(--fg);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .dup-bulk-progress {
   margin-bottom: 0.5rem;
 }
