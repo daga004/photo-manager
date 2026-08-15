@@ -1,8 +1,65 @@
 import { getJob, pauseJob, resumeJob } from "../api.ts";
-import type { ImportJobRecord } from "../../shared/types.ts";
+import { formatBytes } from "../views/dayListView.ts";
+import type { ActiveTransfer, ImportJobRecord } from "../../shared/types.ts";
 
 export interface ProgressHandle {
   stop: () => void;
+}
+
+// Formats a bytes/second throughput as a human MB/s figure. Kept separate from
+// formatBytes (which auto-scales units) because the transfer-rate headline reads
+// more consistently when it always speaks the same unit — MB/s — so a number
+// that suddenly halves is obvious at a glance rather than hidden behind a unit
+// change (e.g. "900 KB/s" vs "1.1 MB/s"). Falls back to "—" for a not-yet-known
+// rate (0 or non-finite) so the headline never shows a misleading "0.0 MB/s".
+function formatRate(bytesPerSecond: number): string {
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return "—";
+  const mbPerSecond = bytesPerSecond / (1024 * 1024);
+  // Sub-1 MB/s still deserves one decimal of precision; above that, one decimal
+  // is plenty and avoids jitter in the least-significant digit.
+  return `${mbPerSecond.toFixed(mbPerSecond < 10 ? 2 : 1)} MB/s`;
+}
+
+// Renders the live, in-flight transfer detail that only a RUNNING import job
+// carries (job.progress). Returns "" for reindex/idle/finished jobs so those
+// render exactly as before — no regressions. Kept as its own function to keep
+// renderProgress's main template readable.
+function renderLiveProgress(progress: NonNullable<ImportJobRecord["progress"]>): string {
+  const rateLine = `<div class="transfer-rate">${formatRate(progress.bytesPerSecond)} <span class="transfer-rate-label">&middot; ${formatBytes(progress.bytesCopiedTotal)} copied</span></div>`;
+
+  const transfers = progress.activeTransfers.map(renderActiveTransfer).join("");
+  const transfersBlock = transfers ? `<div class="active-transfers">${transfers}</div>` : "";
+
+  // "Just imported" preview: only meaningful once a file has fully landed and been
+  // indexed (lastCompletedMediaId set). We never preview an in-flight file — it
+  // isn't indexed yet, so it has no thumbnail. The <img> hides itself on load
+  // error via the delegated capture-phase listener below (broken/absent thumb).
+  const justImported =
+    progress.lastCompletedMediaId != null
+      ? `<div class="just-imported">
+          <img class="just-imported-thumb" src="/api/media/${progress.lastCompletedMediaId}/thumbnail" alt="${escapeHtml(progress.lastCompletedFilename ?? "just imported")}" />
+          <div class="just-imported-caption">
+            <span class="just-imported-label">Just imported</span>
+            ${progress.lastCompletedFilename ? `<span class="just-imported-name">${escapeHtml(progress.lastCompletedFilename)}</span>` : ""}
+          </div>
+        </div>`
+      : "";
+
+  return `<div class="live-progress">${rateLine}${transfersBlock}${justImported}</div>`;
+}
+
+// One active transfer row: filename, size, and a per-file mini progress bar driven
+// by bytesCopied / sizeBytes. This is what makes a multi-GB video legible — the
+// aggregate bar barely moves while it copies, but this row shows real motion.
+function renderActiveTransfer(t: ActiveTransfer): string {
+  const filePct = t.sizeBytes > 0 ? Math.min(100, Math.round((t.bytesCopied / t.sizeBytes) * 100)) : 0;
+  return `<div class="active-transfer">
+      <div class="active-transfer-head">
+        <span class="active-transfer-name">${escapeHtml(t.filename)}</span>
+        <span class="active-transfer-size">${formatBytes(t.bytesCopied)} / ${formatBytes(t.sizeBytes)}</span>
+      </div>
+      <div class="progress-bar mini"><div class="progress-bar-fill" style="width:${filePct}%"></div></div>
+    </div>`;
 }
 
 export function renderProgress(container: HTMLElement, job: ImportJobRecord): void {
@@ -34,6 +91,7 @@ export function renderProgress(container: HTMLElement, job: ImportJobRecord): vo
       ${isDevice ? `&middot; ${job.filesDeletedFromDevice} deleted from device` : ""}
     </div>
     ${indexingLine}
+    ${job.progress ? renderLiveProgress(job.progress) : ""}
     ${job.lastError ? `<div class="progress-error">${escapeHtml(job.lastError)}</div>` : ""}
     ${job.status === "running" ? `<button data-action="pause-job" data-job-id="${job.id}">Pause</button>` : ""}
     ${job.status === "stalled" || job.status === "failed" || job.status === "paused" ? `<button data-action="resume-job" data-job-id="${job.id}">Resume</button>` : ""}
@@ -79,6 +137,21 @@ document.addEventListener("click", (e) => {
       button.disabled = false;
     });
 });
+
+// The "just imported" thumbnail is best-effort: the media may still be generating
+// its thumbnail, or the render can lag a delete. Rather than an inline onerror
+// attribute on every rebuilt <img>, one delegated listener hides any that fail.
+// `error` events don't bubble, so we listen in the CAPTURE phase to catch them.
+document.addEventListener(
+  "error",
+  (e) => {
+    const target = e.target as HTMLElement | null;
+    if (target instanceof HTMLImageElement && target.classList.contains("just-imported-thumb")) {
+      target.style.display = "none";
+    }
+  },
+  true,
+);
 
 function escapeHtml(s: string): string {
   const div = document.createElement("div");

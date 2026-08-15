@@ -1,12 +1,17 @@
 import { Database } from "bun:sqlite";
 import { getImportJob, listImportJobEvents, listImportJobs } from "../db.ts";
 import { pauseJob, resumeJob } from "../services/jobRunner.ts";
+import { snapshot } from "../services/jobProgress.ts";
 
 export function makeJobDetailHandler(db: Database) {
   return (req: Bun.BunRequest<"/api/jobs/:jobId">): Response => {
-    const job = getImportJob(db, Number(req.params.jobId));
+    const jobId = Number(req.params.jobId);
+    const job = getImportJob(db, jobId);
     if (!job) return Response.json({ error: "not found" }, { status: 404 });
-    return Response.json(job);
+    // Merge in live, in-flight transfer progress from the in-memory store (not a
+    // DB column) — present only while a job is actively copying, null otherwise.
+    // The list handler intentionally stays lean and does NOT attach this.
+    return Response.json({ ...job, progress: snapshot(jobId) });
   };
 }
 
