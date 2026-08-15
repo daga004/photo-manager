@@ -13,6 +13,7 @@ import {
   makeMediaFullHandler,
   makeMediaOpenHandler,
   makeMediaRestoreHandler,
+  makeQuarantinedMediaHandler,
 } from "./routes/media.ts";
 import { makePreviewHandler, makeThumbnailHandler } from "./routes/thumbnails.ts";
 import { makeImportHandler, makeDeviceImportHandler } from "./routes/import.ts";
@@ -60,6 +61,7 @@ const server = Bun.serve({
     "/api/media/:id/full": makeMediaFullHandler(db),
     "/api/media/:id/thumbnail": makeThumbnailHandler(db),
     "/api/media/:id/preview": makePreviewHandler(db),
+    "/api/quarantined-media": makeQuarantinedMediaHandler(db),
     "/api/media/:id/open": { POST: makeMediaOpenHandler(db) },
     "/api/media/:id/delete": { POST: makeMediaDeleteHandler(db) },
     "/api/media/:id/restore": { POST: makeMediaRestoreHandler(db) },

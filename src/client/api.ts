@@ -41,6 +41,20 @@ export function restoreMedia(id: number): Promise<{ restored: true }> {
   return jsonFetch(`/api/media/${id}/restore`, { method: "POST" });
 }
 
+export interface QuarantinedItem {
+  id: number;
+  filename: string;
+  mediaType: "photo" | "video";
+  reason: string | null;
+  quarantinedAt: string | null;
+  thumbnailUrl: string;
+}
+
+// Soft-deleted (quarantined) media that can be restored — powers the Recover view.
+export function getQuarantinedMedia(): Promise<QuarantinedItem[]> {
+  return jsonFetch("/api/quarantined-media");
+}
+
 // Opens the original file in the host OS's default app (no download — the file
 // is already local).
 export function openMediaOriginal(id: number): Promise<{ opened: true }> {

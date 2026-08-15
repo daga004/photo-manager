@@ -13,9 +13,13 @@ function makeRenderedImageHandler(db: Database, variant: ImageVariant) {
       return new Response(null, { status: 304 });
     }
 
+    // A quarantined file's original path is empty (it was moved to quarantine);
+    // render from the quarantine copy so the Recover view still shows thumbnails.
+    const sourcePath =
+      media.status === "quarantined" && media.quarantinePath ? media.quarantinePath : media.path;
     const result = await ensureRenderedImage({
       contentHash: media.contentHash,
-      sourcePath: media.path,
+      sourcePath,
       mediaType: media.mediaType,
       variant,
     });

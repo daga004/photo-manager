@@ -43,6 +43,7 @@ export async function renderSettings(container: HTMLElement): Promise<void> {
         import, and single files deleted from the viewer. Purging <strong>permanently</strong>
         deletes them and frees the space.
       </p>
+      <p><a href="#/recover">Recover deleted items &rarr;</a></p>
       <div id="quarantine-info">Loading quarantine size…</div>
       <div id="quarantine-purge"></div>
     </section>

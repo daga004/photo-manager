@@ -7,6 +7,7 @@ import { renderSettings } from "./views/settingsView.ts";
 import { renderOnboarding } from "./views/onboardingView.ts";
 import { renderUndated } from "./views/undatedView.ts";
 import { renderNonCamera } from "./views/nonCameraView.ts";
+import { renderRecover } from "./views/recoverView.ts";
 import { getActiveJob, getSettings } from "./api.ts";
 
 const app = document.getElementById("app");
@@ -84,6 +85,9 @@ async function route(): Promise<void> {
     } else if (path === "settings") {
       setActiveNav("settings");
       await renderSettings(app);
+    } else if (path === "recover") {
+      setActiveNav("settings");
+      await renderRecover(app);
     } else {
       setActiveNav("days");
       await renderDayList(app, navigate);

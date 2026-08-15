@@ -751,6 +751,49 @@ button.primary:hover {
   gap: 0.6rem;
 }
 
+/* Recover (deleted items) view. */
+.recover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.75rem;
+}
+
+.recover-card {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.recover-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.recover-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.recover-name {
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recover-reason {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 /* FTUE keyboard hint at the top of a day. */
 .keyboard-hint {
   margin: 0.25rem 0 1rem;

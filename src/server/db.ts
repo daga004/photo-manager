@@ -274,6 +274,17 @@ export function restoreMedia(database: Database, mediaId: number, restoredPath: 
     .run(restoredPath, mediaId);
 }
 
+/** All soft-deleted (quarantined) media that still has a quarantine file to
+ * restore from, newest first — powers the Recover view. */
+export function getQuarantinedMedia(database: Database): MediaRecord[] {
+  const rows = database
+    .query(
+      "SELECT * FROM media WHERE status = 'quarantined' AND quarantine_path IS NOT NULL ORDER BY quarantined_at DESC",
+    )
+    .all() as MediaRow[];
+  return rows.map(rowToMediaRecord);
+}
+
 export function insertDuplicateResolution(
   database: Database,
   input: { contentHash: string; keptMediaId: number; action: "deleted_extras" | "ignored"; notes?: string | null },

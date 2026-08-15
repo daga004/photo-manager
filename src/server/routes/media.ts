@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
+import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
-import { getMediaById, quarantineMedia, restoreMedia } from "../db.ts";
+import { getMediaById, getQuarantinedMedia, quarantineMedia, restoreMedia } from "../db.ts";
 import { config } from "../config.ts";
 import { safeMoveFile } from "../services/fsmove.ts";
 import { nativeOpen } from "./openPath.ts";
@@ -82,6 +83,26 @@ export function makeMediaDeleteHandler(db: Database) {
         { status: 500 },
       );
     }
+  };
+}
+
+/** Lists soft-deleted (quarantined) media for the Recover view. */
+export function makeQuarantinedMediaHandler(db: Database) {
+  return (): Response => {
+    const items = getQuarantinedMedia(db)
+      // Only truly restorable items: the quarantine copy must still be on disk.
+      // (Files emptied from quarantine out-of-band leave rows that can't restore.)
+      .filter((m) => m.quarantinePath && existsSync(m.quarantinePath))
+      .slice(0, 1000)
+      .map((m) => ({
+        id: m.id,
+        filename: m.filename,
+        mediaType: m.mediaType,
+        reason: m.quarantineReason,
+        quarantinedAt: m.quarantinedAt,
+        thumbnailUrl: `/api/media/${m.id}/thumbnail`,
+      }));
+    return Response.json(items);
   };
 }
 
