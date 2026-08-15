@@ -23,11 +23,30 @@
   box-sizing: border-box;
 }
 
+/* Stop a two-finger trackpad swipe from triggering the browser's back/forward
+   navigation — an accidental horizontal overscroll used to wipe out whatever
+   view you were on (e.g. an import you were watching). The work itself never
+   stopped (jobs run server-side), but the swipe shouldn't navigate at all. */
+html {
+  overscroll-behavior-x: none;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--fg);
+  overscroll-behavior-x: none;
+}
+
+.folder-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.folder-input-row input {
+  flex: 1;
 }
 
 nav {

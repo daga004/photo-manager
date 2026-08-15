@@ -20,6 +20,7 @@ import {
 } from "./routes/jobs.ts";
 import { makeDuplicatesListHandler, makeDuplicatesResolveHandler } from "./routes/duplicates.ts";
 import { makeDevicesListHandler } from "./routes/devices.ts";
+import { makePickFolderHandler } from "./routes/pickFolder.ts";
 
 const db = getDb();
 // Only the real, long-lived server process should ever reconcile stuck jobs —
@@ -51,6 +52,8 @@ const server = Bun.serve({
     "/api/media/:id/restore": { POST: makeMediaRestoreHandler(db) },
 
     "/api/devices": makeDevicesListHandler(),
+
+    "/api/pick-folder": { POST: makePickFolderHandler() },
 
     "/api/import": { POST: makeImportHandler(db) },
     "/api/import/device": { POST: makeDeviceImportHandler(db) },

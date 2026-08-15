@@ -1,6 +1,16 @@
-import { listDevices, startDeviceImport, startImport } from "../api.ts";
+import { listDevices, listJobs, pickFolder, startDeviceImport, startImport } from "../api.ts";
 import { pollJob, renderProgress } from "../components/progressBar.ts";
 import type { DeviceInfo, ImportJobRecord } from "../../shared/types.ts";
+
+// Remembers the last typed folder path across navigations/reloads, so an
+// accidental "back" gesture (e.g. a trackpad swipe) never loses what you typed.
+const FOLDER_PATH_KEY = "photomanager.import.folderPath";
+
+// Import/device-import jobs run server-side and keep going regardless of what the
+// browser does — navigating away, reloading, or an accidental back gesture never
+// stops them. These are the statuses where the job is still live and the UI
+// should re-attach a progress bar when you land back on this view.
+const ACTIVE_STATUSES = new Set(["running", "pending", "paused", "stalled"]);
 
 export async function renderImport(container: HTMLElement): Promise<void> {
   container.innerHTML = `
@@ -8,7 +18,10 @@ export async function renderImport(container: HTMLElement): Promise<void> {
     <section class="import-section">
       <h3>From a folder</h3>
       <p class="hint">Works for a Mac folder or a DSLR SD card mounted via a card reader — files are moved and organized into photos|videos/YYYY/MM/DD.</p>
-      <input type="text" id="folder-path" placeholder="/path/to/folder" />
+      <div class="folder-input-row">
+        <input type="text" id="folder-path" placeholder="/path/to/folder" />
+        <button id="browse-folder" type="button">Browse…</button>
+      </div>
       <button id="start-folder-import">Import</button>
     </section>
     <section class="import-section">
@@ -21,8 +34,33 @@ export async function renderImport(container: HTMLElement): Promise<void> {
   const progressContainer = container.querySelector<HTMLElement>("#import-progress");
   const folderInput = container.querySelector<HTMLInputElement>("#folder-path");
   const folderButton = container.querySelector<HTMLButtonElement>("#start-folder-import");
+  const browseButton = container.querySelector<HTMLButtonElement>("#browse-folder");
   const deviceListContainer = container.querySelector<HTMLElement>("#device-list");
-  if (!progressContainer || !folderInput || !folderButton || !deviceListContainer) return;
+  if (!progressContainer || !folderInput || !folderButton || !browseButton || !deviceListContainer) return;
+
+  // Restore any previously typed path and keep it persisted as the user edits.
+  folderInput.value = localStorage.getItem(FOLDER_PATH_KEY) ?? "";
+  folderInput.addEventListener("input", () => {
+    localStorage.setItem(FOLDER_PATH_KEY, folderInput.value);
+  });
+
+  browseButton.addEventListener("click", async () => {
+    browseButton.disabled = true;
+    const original = browseButton.textContent;
+    browseButton.textContent = "Choosing…";
+    try {
+      const { path } = await pickFolder();
+      if (path) {
+        folderInput.value = path;
+        localStorage.setItem(FOLDER_PATH_KEY, path);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    } finally {
+      browseButton.disabled = false;
+      browseButton.textContent = original;
+    }
+  });
 
   folderButton.addEventListener("click", async () => {
     const sourcePath = folderInput.value.trim();
@@ -38,11 +76,32 @@ export async function renderImport(container: HTMLElement): Promise<void> {
     }
   });
 
+  // Re-attach to an in-flight (or most recent) import job so the ongoing work is
+  // reflected even after a reload or an accidental navigation away and back.
+  await reattachActiveImport(progressContainer);
+
   try {
     const devices = await listDevices();
     renderDeviceList(deviceListContainer, devices, progressContainer);
   } catch {
     deviceListContainer.innerHTML = `<p class="empty-state">Could not check for connected devices.</p>`;
+  }
+}
+
+// Finds the newest import/device-import job and, if it's still live, keeps a
+// progress bar updating. A finished job is shown once (no polling) so you can see
+// how the last import ended.
+async function reattachActiveImport(progressContainer: HTMLElement): Promise<void> {
+  try {
+    const jobs = await listJobs(20);
+    const lastImport = jobs.find((j) => j.jobType === "import" || j.jobType === "device_import");
+    if (!lastImport) return;
+    renderProgress(progressContainer, lastImport);
+    if (ACTIVE_STATUSES.has(lastImport.status)) {
+      pollJob(lastImport.id, (job: ImportJobRecord) => renderProgress(progressContainer, job));
+    }
+  } catch {
+    // Non-fatal: the import form still works even if we can't look up past jobs.
   }
 }
 

@@ -45,6 +45,12 @@ export function listDevices(): Promise<DeviceInfo[]> {
   return jsonFetch("/api/devices");
 }
 
+// Opens a native folder dialog on the server host and returns the chosen path.
+// `path` is null if the user cancelled (or the host has no picker available).
+export function pickFolder(): Promise<{ path: string | null }> {
+  return jsonFetch("/api/pick-folder", { method: "POST" });
+}
+
 export function startImport(sourcePath: string): Promise<{ jobId: number }> {
   return jsonFetch("/api/import", {
     method: "POST",
