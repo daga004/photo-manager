@@ -28,7 +28,7 @@ export function openMediaViewer(items: DayItem[], startIndex: number): void {
       // browser-safe JPEG (HEIC/RAW originals wouldn't render) and a fraction
       // of the original's size over the network.
       renderShell(
-        `<img class="viewer-img viewer-img-loading" src="${thumbUrl(item.id)}" alt="${escapeAttr(item.filename)}" />`,
+        `<img class="viewer-img viewer-img-loading" decoding="async" src="${thumbUrl(item.id)}" alt="${escapeAttr(item.filename)}" />`,
         item,
       );
       const imgEl = overlay.querySelector<HTMLImageElement>(".viewer-img");

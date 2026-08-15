@@ -208,7 +208,7 @@ function renderGroups(container: HTMLElement, groups: DuplicateGroup[]): void {
           ${g.items
             .map(
               (item) => `<div class="dup-item">
-                <img src="${item.thumbnailUrl}" alt="${escapeAttr(item.filename)}" />
+                <img src="${item.thumbnailUrl}" alt="${escapeAttr(item.filename)}" decoding="async" loading="lazy" />
                 <label><input type="radio" name="keep-${g.contentHash}" value="${item.id}" ${item.id === keepId ? "checked" : ""} /> Keep</label>
                 <div class="dup-item-meta">${escapeAttr(item.filename)}<br />${escapeAttr(item.path)}</div>
               </div>`,

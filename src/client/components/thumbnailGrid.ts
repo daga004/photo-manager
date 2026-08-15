@@ -38,6 +38,9 @@ export function renderThumbnailGrid(container: HTMLElement, options: ThumbnailGr
     const img = document.createElement("img");
     img.dataset.src = item.thumbnailUrl;
     img.alt = item.filename;
+    // Decode off the main thread so a screenful of thumbnails decoding at once
+    // doesn't jank scrolling.
+    img.decoding = "async";
     cell.appendChild(img);
 
     if (item.mediaType === "video") {

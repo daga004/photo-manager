@@ -23,6 +23,9 @@ export function getDb(): Database {
   mkdirSync(config.dataDir, { recursive: true });
   db = new Database(config.dbPath, { create: true });
   db.exec("PRAGMA journal_mode = WAL;");
+  // Wait up to 5s for a lock rather than failing instantly with SQLITE_BUSY, so a
+  // browse read during a long import write retries transparently instead of erroring.
+  db.exec("PRAGMA busy_timeout = 5000;");
   // Foreign keys are enabled AFTER migrations, not before: SQLite's supported
   // way to change a table that other tables reference (e.g. altering a CHECK
   // constraint) is create-new/copy/drop-old/rename with FK enforcement off, so
@@ -292,6 +295,39 @@ export function findActiveMediaByHash(database: Database, contentHash: string): 
     .query("SELECT * FROM media WHERE content_hash = ? AND status = 'active' LIMIT 1")
     .get(contentHash) as MediaRow | null;
   return row ? rowToMediaRecord(row) : null;
+}
+
+/** A batch of active media still needing a thumbnail generated, for the
+ * background pre-generation worker. `thumbnail_status` defaults to 'pending' on
+ * insert and is flipped to 'done'/'error' once a thumbnail has been produced, so
+ * this naturally drains to empty and only refills as new media is imported. */
+export function getPendingThumbnails(
+  database: Database,
+  limit: number,
+): Array<{ id: number; contentHash: string; path: string; mediaType: MediaRecord["mediaType"] }> {
+  const rows = database
+    .query(
+      "SELECT id, content_hash, path, media_type FROM media WHERE status = 'active' AND thumbnail_status = 'pending' ORDER BY id DESC LIMIT ?",
+    )
+    .all(limit) as Array<{ id: number; content_hash: string; path: string; media_type: string }>;
+  return rows.map((r) => ({
+    id: r.id,
+    contentHash: r.content_hash,
+    path: r.path,
+    mediaType: r.media_type as MediaRecord["mediaType"],
+  }));
+}
+
+/** Records the outcome of thumbnail generation for one media row. */
+export function setThumbnailStatus(
+  database: Database,
+  id: number,
+  status: "done" | "error",
+  thumbnailPath: string | null,
+): void {
+  database
+    .query("UPDATE media SET thumbnail_status = ?, thumbnail_path = ? WHERE id = ?")
+    .run(status, thumbnailPath, id);
 }
 
 /** Filename+hash pairs of active media already indexed under a given relative directory, for collision resolution. */

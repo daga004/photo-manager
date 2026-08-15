@@ -22,6 +22,7 @@ import { makeDuplicatesListHandler, makeDuplicatesResolveHandler } from "./route
 import { makeDevicesListHandler } from "./routes/devices.ts";
 import { makePickFolderHandler } from "./routes/pickFolder.ts";
 import { makeOpenPathHandler } from "./routes/openPath.ts";
+import { startThumbnailPregen } from "./services/thumbnailPregen.ts";
 
 const db = getDb();
 // Only the real, long-lived server process should ever reconcile stuck jobs —
@@ -78,3 +79,6 @@ const server = Bun.serve({
 console.log(`photo-manager listening on http://localhost:${server.port}`);
 console.log(`  library root: ${getLibraryRoot()}`);
 console.log(`  data dir:     ${config.dataDir}`);
+
+// Warm the thumbnail cache in the background (pauses itself during imports).
+startThumbnailPregen(db);

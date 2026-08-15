@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { getMediaById } from "../db.ts";
+import { getMediaById, setThumbnailStatus } from "../db.ts";
 import { ensureRenderedImage, type ImageVariant } from "../services/thumbnails.ts";
 
 function makeRenderedImageHandler(db: Database, variant: ImageVariant) {
@@ -19,6 +19,14 @@ function makeRenderedImageHandler(db: Database, variant: ImageVariant) {
       mediaType: media.mediaType,
       variant,
     });
+
+    // Keep the index's record of where this file's thumbnail lives up to date,
+    // whether it was just generated here or by the background pre-generator. Only
+    // the "thumb" variant is tracked by thumbnail_status; "preview" is a separate
+    // on-demand cache. Skip the write when nothing changed (the common cache-hit).
+    if (variant === "thumb" && media.thumbnailStatus !== result.status) {
+      setThumbnailStatus(db, id, result.status, result.path);
+    }
 
     if (result.status === "error" || !result.path) {
       return Response.json({ error: result.error ?? "image generation failed" }, { status: 500 });
