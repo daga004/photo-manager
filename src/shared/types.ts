@@ -54,6 +54,39 @@ export interface ImportJobRecord {
   filesErrored: number;
   filesDeletedFromDevice: number;
   lastError: string | null;
+  /** Live, in-flight transfer progress for a RUNNING import job. Attached by the
+   * jobs route from an in-memory store (NOT a DB column) — it's high-frequency
+   * and only meaningful while the job runs. Null/absent for idle or finished
+   * jobs, and for job types that don't report it. */
+  progress?: JobProgress | null;
+}
+
+/** A single file currently being copied into the library (live import progress). */
+export interface ActiveTransfer {
+  /** Destination filename (post-collision-allocation), for display. */
+  filename: string;
+  sizeBytes: number;
+  /** Bytes written so far for THIS file (enables a per-file mini progress bar
+   * and a meaningful rate even while a single multi-GB file copies). */
+  bytesCopied: number;
+  startedAt: string; // ISO
+}
+
+/** Live progress snapshot for a running import job, merged into ImportJobRecord
+ * by the jobs route. Held in an in-memory store keyed by jobId; not persisted. */
+export interface JobProgress {
+  /** Files currently being copied (up to COPY_CONCURRENCY of them). */
+  activeTransfers: ActiveTransfer[];
+  /** Cumulative bytes copied this job run (across all completed + active files). */
+  bytesCopiedTotal: number;
+  /** Smoothed aggregate throughput in bytes/second (rolling window). */
+  bytesPerSecond: number;
+  /** The most recently fully-imported file — lets the UI show a "just imported"
+   * thumbnail (via /api/media/:id/thumbnail) as a lightweight preview. Null until
+   * the first file completes; null for files that were quarantined as duplicates. */
+  lastCompletedFilename: string | null;
+  lastCompletedMediaId: number | null;
+  updatedAt: string; // ISO
 }
 
 export type ImportJobEventOutcome = "imported" | "skipped_duplicate" | "error";
