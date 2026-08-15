@@ -45,6 +45,7 @@ export function openMediaViewer(items: DayItem[], startIndex: number, opts: View
   let index = startIndex;
   let currentContext = opts.context;
   let infoVisible = false; // immersive by default; Space reveals name + instructions
+  let hintDismissed = false; // the "Press Space for info" hint auto-hides after 5s
   const noun = opts.collectionNoun ?? "collection";
   let pz: PanzoomObject | null = null; // pan/zoom on the current photo (recreated per image)
 
@@ -118,7 +119,7 @@ export function openMediaViewer(items: DayItem[], startIndex: number, opts: View
       <button class="viewer-prev" data-action="prev" ${index === 0 ? "disabled" : ""} aria-label="Previous">&larr;</button>
       <div class="viewer-media">${mediaHtml}</div>
       <button class="viewer-next" data-action="next" ${index === list.length - 1 ? "disabled" : ""} aria-label="Next">&rarr;</button>
-      <div class="viewer-hint">Press <kbd>Space</kbd> for info</div>
+      ${hintDismissed ? "" : `<div class="viewer-hint">Press <kbd>Space</kbd> for info</div>`}
       <div class="viewer-info">
         <div class="viewer-info-name">${label}${escapeAttr(item.filename)}</div>
         <div class="viewer-info-pos">${index + 1} / ${list.length}</div>
@@ -243,6 +244,13 @@ export function openMediaViewer(items: DayItem[], startIndex: number, opts: View
 
   document.addEventListener("keydown", onKeyDown);
   render();
+
+  // Fade the "Press Space for info" hint out after 5s, then stop rendering it so
+  // it doesn't reappear as the user navigates between images.
+  setTimeout(() => {
+    hintDismissed = true;
+    overlay.querySelector<HTMLElement>(".viewer-hint")?.classList.add("viewer-hint-hidden");
+  }, 5000);
 }
 
 function escapeAttr(s: string): string {
