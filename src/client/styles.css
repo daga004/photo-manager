@@ -641,6 +641,50 @@ button.primary:hover {
   margin: 0.15rem 0 0;
 }
 
+.quarantine-total {
+  font-size: 1.05rem;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.quarantine-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 1rem;
+  max-width: 420px;
+}
+
+.quarantine-cat {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.purge-confirm {
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border));
+  border-radius: var(--radius);
+  padding: 1rem;
+  max-width: 560px;
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface));
+}
+
+.purge-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.75rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.purge-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
 .dup-quarantine-controls {
   display: flex;
   align-items: center;

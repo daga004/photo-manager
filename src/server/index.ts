@@ -29,6 +29,7 @@ import { makeDuplicatesListHandler, makeDuplicatesResolveHandler } from "./route
 import { makeDevicesListHandler } from "./routes/devices.ts";
 import { makePickFolderHandler } from "./routes/pickFolder.ts";
 import { makeOpenPathHandler } from "./routes/openPath.ts";
+import { makeQuarantineInfoHandler, makeQuarantinePurgeHandler } from "./routes/quarantine.ts";
 import { startThumbnailPregen } from "./services/thumbnailPregen.ts";
 
 const db = getDb();
@@ -67,6 +68,8 @@ const server = Bun.serve({
 
     "/api/pick-folder": { POST: makePickFolderHandler() },
     "/api/open-path": { POST: makeOpenPathHandler() },
+    "/api/quarantine": makeQuarantineInfoHandler(),
+    "/api/quarantine/purge": { POST: makeQuarantinePurgeHandler(db) },
 
     "/api/import": { POST: makeImportHandler(db) },
     "/api/import/device": { POST: makeDeviceImportHandler(db) },

@@ -126,6 +126,20 @@ export function pauseJob(jobId: number): Promise<{ pausing: true }> {
   return jsonFetch(`/api/jobs/${jobId}/pause`, { method: "POST" });
 }
 
+export interface QuarantineInfo {
+  categories: Array<{ name: string; files: number; bytes: number }>;
+  totalFiles: number;
+  totalBytes: number;
+}
+
+export function getQuarantineInfo(): Promise<QuarantineInfo> {
+  return jsonFetch("/api/quarantine");
+}
+
+export function purgeQuarantine(): Promise<{ purged: true; removedRows: number; deletedEntries: number }> {
+  return jsonFetch("/api/quarantine/purge", { method: "POST" });
+}
+
 export interface SettingsInfo {
   libraryRoot: string;
   isDefault: boolean;
