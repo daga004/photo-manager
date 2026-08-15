@@ -33,9 +33,26 @@ function renderLiveProgress(progress: NonNullable<ImportJobRecord["progress"]>):
   return `<div class="live-progress">${rateLine}${transfersBlock}</div>`;
 }
 
-// One active transfer row: filename, size, and a per-file mini progress bar driven
-// by bytesCopied / sizeBytes. This is what makes a multi-GB video legible — the
-// aggregate bar barely moves while it copies, but this row shows real motion.
+// Renders the destination folders a file is landing in as a compact, muted line
+// like "→ 2019 / 04 / 06". destRelativeDir is "photos|videos/YYYY/MM/DD"; we drop
+// the leading media-type segment and surface just the date parts, since a wrong
+// capture-date (e.g. a 2024 photo filed under 2019) is exactly what this line is
+// meant to make jump out. Returns "" for an empty/malformed dir so nothing renders
+// rather than crashing.
+function renderTransferDest(destRelativeDir: string): string {
+  if (!destRelativeDir) return "";
+  // Split off the media-type prefix; the remainder is the YYYY/MM/DD date path.
+  const parts = destRelativeDir.split("/").filter(Boolean);
+  const dateParts = parts.slice(1);
+  if (dateParts.length === 0) return "";
+  const dateLabel = dateParts.map(escapeHtml).join(" / ");
+  return `<div class="active-transfer-dest">&rarr; ${dateLabel}</div>`;
+}
+
+// One active transfer row: filename, destination date folders, size, and a per-file
+// mini progress bar driven by bytesCopied / sizeBytes. The mini bar is what makes a
+// multi-GB video legible — the aggregate bar barely moves while it copies, but this
+// row shows real motion. The destination line makes a mis-dated file obvious live.
 function renderActiveTransfer(t: ActiveTransfer): string {
   const filePct = t.sizeBytes > 0 ? Math.min(100, Math.round((t.bytesCopied / t.sizeBytes) * 100)) : 0;
   return `<div class="active-transfer">
@@ -43,6 +60,7 @@ function renderActiveTransfer(t: ActiveTransfer): string {
         <span class="active-transfer-name">${escapeHtml(t.filename)}</span>
         <span class="active-transfer-size">${formatBytes(t.bytesCopied)} / ${formatBytes(t.sizeBytes)}</span>
       </div>
+      ${renderTransferDest(t.destRelativeDir)}
       <div class="progress-bar mini"><div class="progress-bar-fill" style="width:${filePct}%"></div></div>
     </div>`;
 }

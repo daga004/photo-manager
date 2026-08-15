@@ -372,6 +372,15 @@ button:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* Destination date folders ("→ 2019 / 04 / 06") under a transferring file, so a
+   mis-dated file is obvious live. Tabular figures keep the date parts aligned. */
+.active-transfer-dest {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin: 0.1rem 0 0;
+}
+
 /* A slimmer variant of .progress-bar for the per-file mini bars. */
 .progress-bar.mini {
   height: 5px;

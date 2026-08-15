@@ -187,7 +187,7 @@ async function executePlan(db: Database, jobId: number, ops: PlannedOp[]): Promi
 async function executeOp(db: Database, jobId: number, op: PlannedOp): Promise<void> {
   switch (op.action) {
     case "import": {
-      const transferId = startTransfer(jobId, op.destFilename, op.sizeBytes);
+      const transferId = startTransfer(jobId, op.destFilename, op.sizeBytes, op.destRelativeDir);
       try {
         const destRelativePath = join(op.destRelativeDir, op.destFilename);
         const destAbsolutePath = join(getLibraryRoot(), destRelativePath);

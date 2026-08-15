@@ -65,6 +65,11 @@ export interface ImportJobRecord {
 export interface ActiveTransfer {
   /** Destination filename (post-collision-allocation), for display. */
   filename: string;
+  /** Destination directory the file is being placed into, relative to the
+   * library root — the `photos|videos/YYYY/MM/DD` path. Lets the UI surface the
+   * capture-date folders live, so a mis-dated file (e.g. a 2024 photo landing
+   * under 2019) is obvious at a glance while importing. */
+  destRelativeDir: string;
   sizeBytes: number;
   /** Bytes written so far for THIS file (enables a per-file mini progress bar
    * and a meaningful rate even while a single multi-GB file copies). */

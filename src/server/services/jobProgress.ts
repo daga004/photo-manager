@@ -58,8 +58,11 @@ export function clearJob(jobId: number): void {
  * Records the start of a single file transfer and returns its transferId. Lazily
  * initializes the job's state if it somehow wasn't (defensive — the executor
  * always calls initJob first), so a transfer is never silently dropped.
+ *
+ * `destRelativeDir` is the `photos|videos/YYYY/MM/DD` destination folder; it's
+ * stored on the transfer so the UI can show the capture-date folders live.
  */
-export function startTransfer(jobId: number, filename: string, sizeBytes: number): number {
+export function startTransfer(jobId: number, filename: string, sizeBytes: number, destRelativeDir: string): number {
   let state = jobs.get(jobId);
   if (!state) {
     initJob(jobId);
@@ -68,6 +71,7 @@ export function startTransfer(jobId: number, filename: string, sizeBytes: number
   const transferId = state.nextTransferId++;
   state.transfers.set(transferId, {
     filename,
+    destRelativeDir,
     sizeBytes,
     bytesCopied: 0,
     startedAt: new Date().toISOString(),
