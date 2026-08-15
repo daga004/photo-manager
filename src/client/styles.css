@@ -60,6 +60,49 @@ nav.hidden {
   display: none;
 }
 
+/* Global background-activity indicator, pinned to the right of the nav. Visible
+   on every tab while an import/reindex runs, so background work is never hidden. */
+.activity-indicator {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--accent);
+  font-size: 0.85rem;
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-indicator.hidden {
+  display: none;
+}
+
+.activity-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* "Checking for in-progress imports…" placeholder in the Import view. */
+.checking-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 1rem 0;
+}
+
 .onboarding {
   max-width: 640px;
   margin: 2rem auto;

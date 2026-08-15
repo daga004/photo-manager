@@ -88,6 +88,12 @@ export function getJob(jobId: number): Promise<ImportJobRecord> {
   return jsonFetch(`/api/jobs/${jobId}`);
 }
 
+// The single currently-active (running/pending) job, or null. Backs the global
+// "something's running" indicator shown in the nav on every tab.
+export function getActiveJob(): Promise<{ job: ImportJobRecord | null }> {
+  return jsonFetch("/api/active-job");
+}
+
 export function getJobEvents(jobId: number, since: number, limit = 200): Promise<ImportJobEventRecord[]> {
   return jsonFetch(`/api/jobs/${jobId}/events?since=${since}&limit=${limit}`);
 }

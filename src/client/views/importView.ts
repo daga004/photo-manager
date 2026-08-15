@@ -76,8 +76,11 @@ export async function renderImport(container: HTMLElement): Promise<void> {
     }
   });
 
-  // Re-attach to an in-flight (or most recent) import job so the ongoing work is
-  // reflected even after a reload or an accidental navigation away and back.
+  // Show a loading placeholder immediately so the user isn't briefly shown just
+  // the import forms (and left wondering if a running import stopped) while we
+  // check the server for in-progress work. reattachActiveImport replaces or
+  // clears this once it knows.
+  progressContainer.innerHTML = `<div class="checking-status"><span class="activity-spinner"></span> Checking for in-progress imports…</div>`;
   await reattachActiveImport(progressContainer);
 
   try {
@@ -95,13 +98,17 @@ async function reattachActiveImport(progressContainer: HTMLElement): Promise<voi
   try {
     const jobs = await listJobs(20);
     const lastImport = jobs.find((j) => j.jobType === "import" || j.jobType === "device_import");
-    if (!lastImport) return;
+    if (!lastImport) {
+      progressContainer.innerHTML = ""; // no history — clear the "checking…" placeholder
+      return;
+    }
     renderProgress(progressContainer, lastImport);
     if (ACTIVE_STATUSES.has(lastImport.status)) {
       pollJob(lastImport.id, (job: ImportJobRecord) => renderProgress(progressContainer, job));
     }
   } catch {
     // Non-fatal: the import form still works even if we can't look up past jobs.
+    progressContainer.innerHTML = "";
   }
 }
 

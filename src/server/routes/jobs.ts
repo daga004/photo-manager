@@ -1,7 +1,18 @@
 import { Database } from "bun:sqlite";
-import { getImportJob, listImportJobEvents, listImportJobs } from "../db.ts";
+import { findActiveJob, getImportJob, listImportJobEvents, listImportJobs } from "../db.ts";
 import { pauseJob, resumeJob } from "../services/jobRunner.ts";
 import { snapshot } from "../services/jobProgress.ts";
+
+/** The single currently-active (running/pending) job, or null. Powers the global
+ * "something's running" indicator so any tab can show that work is in progress
+ * without each view polling the full job list. Includes live progress. */
+export function makeActiveJobHandler(db: Database) {
+  return (): Response => {
+    const job = findActiveJob(db);
+    if (!job) return Response.json({ job: null });
+    return Response.json({ job: { ...job, progress: snapshot(job.id) } });
+  };
+}
 
 export function makeJobDetailHandler(db: Database) {
   return (req: Bun.BunRequest<"/api/jobs/:jobId">): Response => {

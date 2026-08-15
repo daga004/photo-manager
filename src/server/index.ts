@@ -12,6 +12,7 @@ import { makePreviewHandler, makeThumbnailHandler } from "./routes/thumbnails.ts
 import { makeImportHandler, makeDeviceImportHandler } from "./routes/import.ts";
 import { makeReindexHandler } from "./routes/reindex.ts";
 import {
+  makeActiveJobHandler,
   makeJobDetailHandler,
   makeJobEventsHandler,
   makeJobListHandler,
@@ -62,6 +63,7 @@ const server = Bun.serve({
     "/api/import/device": { POST: makeDeviceImportHandler(db) },
     "/api/reindex": { POST: makeReindexHandler(db) },
 
+    "/api/active-job": makeActiveJobHandler(db),
     "/api/jobs": makeJobListHandler(db),
     "/api/jobs/:jobId": makeJobDetailHandler(db),
     "/api/jobs/:jobId/events": makeJobEventsHandler(db),

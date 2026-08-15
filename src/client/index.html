@@ -13,6 +13,10 @@
       <a href="#/import" data-nav="import">Import</a>
       <a href="#/reindex" data-nav="reindex">Reindex</a>
       <a href="#/settings" data-nav="settings">Settings</a>
+      <a id="activity-indicator" class="activity-indicator hidden" href="#/reindex" title="A background job is running">
+        <span class="activity-spinner" aria-hidden="true"></span>
+        <span class="activity-label"></span>
+      </a>
     </nav>
     <main id="app"></main>
     <script type="module" src="./main.ts"></script>

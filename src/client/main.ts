@@ -7,7 +7,7 @@ import { renderSettings } from "./views/settingsView.ts";
 import { renderOnboarding } from "./views/onboardingView.ts";
 import { renderUndated } from "./views/undatedView.ts";
 import { renderNonCamera } from "./views/nonCameraView.ts";
-import { getSettings } from "./api.ts";
+import { getActiveJob, getSettings } from "./api.ts";
 
 const app = document.getElementById("app");
 
@@ -95,3 +95,40 @@ async function route(): Promise<void> {
 
 window.addEventListener("hashchange", () => void route());
 void route();
+
+/**
+ * Global "something's running" indicator: polls for the single active job and
+ * shows a spinner + progress in the nav on EVERY tab, so background work (an
+ * import/reindex) is always visible — you don't have to be on the Import tab, or
+ * wait for it to re-appear, to know it's still going. Clicking jumps to the job.
+ */
+function startActivityIndicator(): void {
+  const el = document.getElementById("activity-indicator");
+  const label = el?.querySelector<HTMLElement>(".activity-label");
+  if (!el || !label) return;
+
+  async function tick(): Promise<void> {
+    try {
+      const { job } = await getActiveJob();
+      if (job) {
+        const isReindex = job.jobType === "reindex";
+        const done = job.jobType === "device_import"
+          ? job.filesProcessed
+          : job.filesImported + job.filesSkippedDuplicate + job.filesErrored;
+        const verb = isReindex ? "Reindexing" : "Importing";
+        const suffix = job.status === "paused" ? " (paused)" : job.status === "stalled" ? " (stalled)" : "";
+        label!.textContent = `${verb} ${done}/${job.filesFound}${suffix}`;
+        el!.setAttribute("href", isReindex ? "#/reindex" : "#/import");
+        el!.classList.remove("hidden");
+      } else {
+        el!.classList.add("hidden");
+      }
+    } catch {
+      // Network hiccup — leave the current state as-is rather than flicker.
+    }
+    setTimeout(() => void tick(), 2000);
+  }
+  void tick();
+}
+
+startActivityIndicator();
