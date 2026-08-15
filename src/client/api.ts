@@ -17,7 +17,7 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export function getDays(sortBy: "count" | "size", order: "asc" | "desc", type: "photo" | "video" | "all"): Promise<DayAggregate[]> {
+export function getDays(sortBy: "count" | "size" | "date", order: "asc" | "desc", type: "photo" | "video" | "all"): Promise<DayAggregate[]> {
   return jsonFetch(`/api/days?sortBy=${sortBy}&order=${order}&type=${type}`);
 }
 

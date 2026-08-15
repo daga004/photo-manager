@@ -148,11 +148,11 @@ export function getMediaById(database: Database, id: number): MediaRecord | null
   return row ? rowToMediaRecord(row) : null;
 }
 
-const SORT_COLUMNS = { count: "itemCount", size: "totalSizeBytes" } as const;
+const SORT_COLUMNS = { count: "itemCount", size: "totalSizeBytes", date: "date" } as const;
 
 export function getDayAggregates(
   database: Database,
-  options: { sortBy: "count" | "size"; order: "asc" | "desc"; type: "photo" | "video" | "all" },
+  options: { sortBy: "count" | "size" | "date"; order: "asc" | "desc"; type: "photo" | "video" | "all" },
 ): Array<{ date: string; itemCount: number; photoCount: number; videoCount: number; totalSizeBytes: number }> {
   const column = SORT_COLUMNS[options.sortBy];
   const direction = options.order === "asc" ? "ASC" : "DESC";

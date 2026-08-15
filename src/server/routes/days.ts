@@ -22,7 +22,8 @@ export function makeDaysListHandler(db: Database) {
   return (req: Request): Response => {
     const url = new URL(req.url);
     const sortByParam = url.searchParams.get("sortBy");
-    const sortBy: "count" | "size" = sortByParam === "size" ? "size" : "count";
+    const sortBy: "count" | "size" | "date" =
+      sortByParam === "size" ? "size" : sortByParam === "date" ? "date" : "count";
     const order: "asc" | "desc" = url.searchParams.get("order") === "asc" ? "asc" : "desc";
     const typeParam = url.searchParams.get("type");
     const type: "photo" | "video" | "all" =

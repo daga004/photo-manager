@@ -23,6 +23,7 @@ export async function renderDayList(container: HTMLElement, navigate: (path: str
         <select id="sort-by">
           <option value="count">Item count</option>
           <option value="size">Total size</option>
+          <option value="date">Date</option>
         </select>
         <select id="sort-order">
           <option value="desc">Descending</option>
@@ -47,7 +48,11 @@ export async function renderDayList(container: HTMLElement, navigate: (path: str
   if (!sortBySelect || !sortOrderSelect || !typeSelect || !tableContainer || !quickJumpContainer) return;
 
   async function load(): Promise<void> {
-    const sortBy = (sortBySelect?.value === "size" ? "size" : "count") as "count" | "size";
+    const sortByValue = sortBySelect?.value;
+    const sortBy = (sortByValue === "size" ? "size" : sortByValue === "date" ? "date" : "count") as
+      | "count"
+      | "size"
+      | "date";
     const order = (sortOrderSelect?.value === "asc" ? "asc" : "desc") as "asc" | "desc";
     const typeValue = typeSelect?.value;
     const type = (typeValue === "photo" || typeValue === "video" ? typeValue : "all") as "photo" | "video" | "all";
